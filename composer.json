@@ -1,0 +1,47 @@
+{
+  "name": "peynman/larapress-giv",
+  "description": "Syncronization events and jobs for connecting with Giv Accounting software",
+  "type": "library",
+  "license": "MIT",
+  "minimum-stability": "dev",
+  "authors": [
+    {
+      "name": "Peyman Abdi",
+      "email": "larapress@peynman.ir"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Larapress\\Giv\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Larapress\\Giv\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Larapress\\Giv\\Providers\\PackageServiceProvider"
+      ]
+    }
+  },
+  "require": {
+    "php": "^7.0|^8.0",
+    "laravel/framework": "^8.0",
+    "nexmo/client": "^2.0",
+    "peynman/larapress-ecommerce": "master"
+  },
+  "require-dev": {
+    "facade/ignition": "^2.3.6",
+    "fzaninotto/faker": "^1.4",
+    "mockery/mockery": "^1.0",
+    "nunomaduro/collision": "^5.0",
+    "orchestra/testbench": "^6.2.0",
+    "phpunit/phpunit": "^9.0",
+    "phpmd/phpmd" : "@stable",
+    "squizlabs/php_codesniffer": "3.*",
+    "matthewbdaly/artisan-standalone": "dev-master"
+  }
+}

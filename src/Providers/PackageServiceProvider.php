@@ -4,6 +4,7 @@ namespace Larapress\Giv\Providers;
 
 use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Support\ServiceProvider;
+use Larapress\Giv\Commands\GivSyncronize;
 
 class PackageServiceProvider extends ServiceProvider
 {
@@ -29,5 +30,12 @@ class PackageServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../../config/giv.php' => config_path('larapress/giv.php'),
         ], ['config', 'larapress', 'larapress-giv']);
+
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                GivSyncronize::class,
+            ]);
+        }
     }
 }

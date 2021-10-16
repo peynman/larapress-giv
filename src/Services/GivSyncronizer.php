@@ -15,6 +15,7 @@ use Larapress\ECommerce\Models\Product;
 use Larapress\FileShare\Models\FileUpload;
 use Larapress\FileShare\Services\FileUpload\IFileUploadService;
 use Larapress\Profiles\IProfileUser;
+use Larapress\Profiles\Models\Filter;
 
 class GivSyncronizer
 {
@@ -82,46 +83,46 @@ class GivSyncronizer
         $timestamps = $this->getSyncTimestamps();
 
         $internalCats = [];
-        $this->client->traverseCategories(
-            function (PaginatedResponse $response) use (&$internalCats) {
-                foreach ($response->Value as $cat) {
-                    $dbCat = ProductCategory::updateOrCreate([
-                        'author_id' => config('larapress.giv.author_id'),
-                        'name' => 'giv-' . $cat->CategoryCode,
-                    ], [
-                        'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-                        'data' => [
-                            'title' => $cat->CategoryName,
-                            'order' => $cat->OrderIndex,
-                            'showOnProductCard' => $cat->VirtualSaleActive,
-                            'isFilterable' => $cat->VirtualSaleActive,
-                            'showInFrontFilters' => $cat->VirtualSaleActive,
-                            'queryFrontEnd' => $cat->VirtualSaleActive,
-                            'giv' => [
-                                'code' => $cat->CategoryCode,
-                                'active' => $cat->CategoryIsActive,
-                                'virtualSale' => $cat->VirtualSaleActive,
-                            ],
-                        ],
-                    ]);
-                    $internalCats[$cat->CategoryCode] = $dbCat->id;
-                }
-            },
-            '1',
-            50,
-            $timestamps['categories-1'] ?? null,
-        );
+        // $this->client->traverseCategories(
+        //     function (PaginatedResponse $response) use (&$internalCats) {
+        //         foreach ($response->Value as $cat) {
+        //             $dbCat = ProductCategory::updateOrCreate([
+        //                 'author_id' => config('larapress.giv.author_id'),
+        //                 'name' => 'giv-' . $cat->CategoryCode,
+        //             ], [
+        //                 'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
+        //                 'data' => [
+        //                     'title' => $cat->CategoryName,
+        //                     'order' => $cat->OrderIndex,
+        //                     'showOnProductCard' => $cat->VirtualSaleActive,
+        //                     'isFilterable' => $cat->VirtualSaleActive,
+        //                     'showInFrontFilters' => $cat->VirtualSaleActive,
+        //                     'queryFrontEnd' => $cat->VirtualSaleActive,
+        //                     'giv' => [
+        //                         'code' => $cat->CategoryCode,
+        //                         'active' => $cat->CategoryIsActive,
+        //                         'virtualSale' => $cat->VirtualSaleActive,
+        //                     ],
+        //                 ],
+        //             ]);
+        //             $internalCats[$cat->CategoryCode] = $dbCat->id;
+        //         }
+        //     },
+        //     '1',
+        //     50,
+        //     $timestamps['categories-1'] ?? null,
+        // );
 
         $this->client->traverseCategories(
             function (PaginatedResponse $response) use (&$internalCats) {
                 foreach ($response->Value as $cat) {
-                    $parent_id = isset($internalCats[$cat->ParentCategoryCode]) ? $internalCats[$cat->ParentCategoryCode] : null;
+                    // $parent_id = isset($internalCats[$cat->ParentCategoryCode]) ? $internalCats[$cat->ParentCategoryCode] : null;
                     $dbCat = ProductCategory::updateOrCreate([
                         'author_id' => config('larapress.giv.author_id'),
                         'name' => 'giv-' . $cat->CategoryCode,
                     ], [
                         'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-                        'parent_id' => $parent_id,
+                        'parent_id' => null,
                         'data' => [
                             'title' => $cat->CategoryName,
                             'order' => $cat->OrderIndex,
@@ -189,6 +190,40 @@ class GivSyncronizer
      *
      * @return void
      */
+    public function syncColors()
+    {
+        $timestamps = $this->getSyncTimestamps();
+        $this->client->traverseColors(
+            function (PaginatedResponse $response) {
+                foreach ($response->Value as $color) {
+                    Filter::updateOrCreate([
+                        'author_id' => config('larapress.giv.author_id'),
+                        'type' => 'giv-color',
+                        'name' => 'id' . $color->ItemColorID,
+                    ], [
+                        'zorder' => $color->OrderIndex,
+                        'data' => [
+                            'hex' => $color->ColorHex,
+                            'name' => $color->ItemColorName,
+                        ]
+                    ]);
+                }
+            },
+            50,
+            $timestamps['colors'] ?? null,
+        );
+
+        $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
+        $this->setSyncTimestamps(array_merge($timestamps, [
+            'colors' => $now,
+        ]));
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @return void
+     */
     public function syncProducts()
     {
         $timestamps = $this->getSyncTimestamps();
@@ -246,6 +281,8 @@ class GivSyncronizer
         $inventory = [];
         $images = [];
 
+        $colorIds = [];
+
         if ($stock?->Table?->TableData) {
             foreach ($stock->Table->TableData as $data) {
                 foreach ($data->Items as $dataItem) {
@@ -253,9 +290,10 @@ class GivSyncronizer
                         $prodParentId = $dataItem->ItemParentID;
                     }
 
+                    $colorIds[] = 'id' . $dataItem->ItemColorID;
                     $inventory[] = [
                         'stock' => $dataItem->QOH,
-                        'color' => $dataItem->ItemColorName,
+                        'color' => $dataItem->ItemColorID,
                         'name' => $dataItem->ItemColorName,
                         'ref' => $dataItem->ItemColorID,
                         'size' => $dataItem->ItemSizeDesc,
@@ -266,18 +304,29 @@ class GivSyncronizer
             }
         }
 
-        $existingProd = Product::query()->where('author_id', config('larapress.giv.author_id'))->where('name', 'giv-'.$itemCode)->first();
+        /** @var Collection */
+        $colorFilters = Filter::query()->whereIn('name', $colorIds)->where('type', 'giv-color')->get();
+        $colorFilterIds = $colorFilters->keyBy('name');
+        foreach ($inventory as &$item) {
+            /** @var Filter */
+            $colorFilter = $colorFilterIds->get('id'.$item['ref']);
+            if (!is_null($colorFilter) && isset($colorFilter->data['hex']) && !empty($colorFilter->data['hex'])) {
+                $item['color'] = '#'.$colorFilter->data['hex'];
+            }
+        }
+
+        $existingProd = Product::query()->where('author_id', config('larapress.giv.author_id'))->where('name', 'giv-' . $itemCode)->first();
         $existingImages = Collection::make($existingProd?->data['types']['images']['slides'] ?? []);
 
         $prodImages = $this->client->getProductImages($prodParentId, $lastDate);
         foreach ($prodImages as $prodImage) {
-            $existingImage = $existingImages->first(function ($img) use($prodImage) {
+            $existingImage = $existingImages->first(function ($img) use ($prodImage) {
                 return isset($img['index']) && $img['index'] === $prodImage->ImageIndex;
             });
 
             if ($prodImage->IsActive) {
-                $localPath = $this->client->downloadImageFile($prodImage->ImagePath);
                 if (is_null($existingImage)) {
+                    $localPath = $this->client->downloadImageFile($prodImage->ImagePath);
                     $fileUpload = $this->fileService->processLocalFile(
                         $this->authorUser,
                         $localPath,
@@ -315,7 +364,7 @@ class GivSyncronizer
             'data' => [
                 'title' => $title,
                 'fixedPrice' => [
-                    'amount' => floatValue($stock->SellPrice),
+                    'amount' => $stock->SellPrice,
                     'currency' => config('larapress.ecommerce.banking.currency.id'),
                 ],
                 'quantized' => true,

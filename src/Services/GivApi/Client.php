@@ -2,12 +2,12 @@
 
 namespace Larapress\Giv\Services\GivApi;
 
-use Carbon\Carbon;
 use Exception;
 use Larapress\CRUD\Extend\Helpers;
 use Larapress\ECommerce\IECommerceUser;
 use Larapress\FileShare\Models\FileUpload;
 use Illuminate\Support\Str;
+use Larapress\ECommerce\Services\Cart\ICart;
 
 class Client
 {
@@ -92,6 +92,55 @@ class Client
     /**
      * Undocumented function
      *
+     * @param callable $callback
+     * @param integer $limit
+     * @param string|null|null $lastDate
+     *
+     * @return void
+     */
+    public function traverseColors(callable $callback, $limit = 10, string|null $lastDate = null)
+    {
+        $params = [
+            'count' => $limit,
+        ];
+
+        if (!is_null($lastDate)) {
+            $params['lastdate'] = $lastDate;
+        }
+
+        $this->traverseRecords(
+            $callback,
+            '/api/itemcolor',
+            'GET',
+            $params,
+            [
+                'Value' => 'array:' . \Larapress\Giv\Services\GivApi\ProductColor::class,
+            ]
+        );
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param integer $itemId
+     * @param integer $itemParentId
+     * @param integer|null $lastDate
+     *
+     * @return void
+     */
+    public function checkQOH(int $itemId, int $itemParentId, int $lastDate = null)
+    {
+
+    }
+
+    public function sendOrder(ICart $cart)
+    {
+
+    }
+
+    /**
+     * Undocumented function
+     *
      * @param int $prodId
      * @return ProductStock
      */
@@ -146,8 +195,8 @@ class Client
         } else if (Str::endsWith($url, '.png')) {
             $mimeType = 'png';
         }
-        $rndFilename = 'giv_'.Helpers::randomString().'.'.$mimeType;
-        $localPath = storage_path('app/temp/'.$rndFilename);
+        $rndFilename = 'giv_' . Helpers::randomString() . '.' . $mimeType;
+        $localPath = storage_path('app/temp/' . $rndFilename);
 
         return $this->downloadFile($url, $localPath);
     }

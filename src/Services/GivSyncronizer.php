@@ -11,11 +11,13 @@ use Larapress\Giv\Services\GivApi\Client;
 use Larapress\Giv\Services\GivApi\PaginatedResponse;
 use Larapress\Profiles\Models\FormEntry;
 use Illuminate\Support\Str;
+use Larapress\ECommerce\Models\Cart;
 use Larapress\ECommerce\Models\Product;
 use Larapress\FileShare\Models\FileUpload;
 use Larapress\FileShare\Services\FileUpload\IFileUploadService;
 use Larapress\Profiles\IProfileUser;
 use Larapress\Profiles\Models\Filter;
+use Larapress\Giv\Services\GivApi\Category;
 
 class GivSyncronizer
 {
@@ -83,105 +85,76 @@ class GivSyncronizer
         $timestamps = $this->getSyncTimestamps();
 
         $internalCats = [];
-        // $this->client->traverseCategories(
-        //     function (PaginatedResponse $response) use (&$internalCats) {
-        //         foreach ($response->Value as $cat) {
-        //             $dbCat = ProductCategory::updateOrCreate([
-        //                 'author_id' => config('larapress.giv.author_id'),
-        //                 'name' => 'giv-' . $cat->CategoryCode,
-        //             ], [
-        //                 'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-        //                 'data' => [
-        //                     'title' => $cat->CategoryName,
-        //                     'order' => $cat->OrderIndex,
-        //                     'showOnProductCard' => $cat->VirtualSaleActive,
-        //                     'isFilterable' => $cat->VirtualSaleActive,
-        //                     'showInFrontFilters' => $cat->VirtualSaleActive,
-        //                     'queryFrontEnd' => $cat->VirtualSaleActive,
-        //                     'giv' => [
-        //                         'code' => $cat->CategoryCode,
-        //                         'active' => $cat->CategoryIsActive,
-        //                         'virtualSale' => $cat->VirtualSaleActive,
-        //                     ],
-        //                 ],
-        //             ]);
-        //             $internalCats[$cat->CategoryCode] = $dbCat->id;
-        //         }
-        //     },
-        //     '1',
-        //     50,
-        //     $timestamps['categories-1'] ?? null,
-        // );
-
+        /** @var Category[] */
+        $categoriesList = [];
         $this->client->traverseCategories(
-            function (PaginatedResponse $response) use (&$internalCats) {
+            function (PaginatedResponse $response) use (&$categoriesList) {
                 foreach ($response->Value as $cat) {
-                    // $parent_id = isset($internalCats[$cat->ParentCategoryCode]) ? $internalCats[$cat->ParentCategoryCode] : null;
-                    $dbCat = ProductCategory::updateOrCreate([
-                        'author_id' => config('larapress.giv.author_id'),
-                        'name' => 'giv-' . $cat->CategoryCode,
-                    ], [
-                        'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-                        'parent_id' => null,
-                        'data' => [
-                            'title' => $cat->CategoryName,
-                            'order' => $cat->OrderIndex,
-                            'showOnProductCard' => $cat->VirtualSaleActive,
-                            'isFilterable' => $cat->VirtualSaleActive,
-                            'showInFrontFilters' => $cat->VirtualSaleActive,
-                            'queryFrontEnd' => $cat->VirtualSaleActive,
-                            'giv' => [
-                                'code' => $cat->CategoryCode,
-                                'active' => $cat->CategoryIsActive,
-                                'virtualSale' => $cat->VirtualSaleActive,
-                            ],
-                        ],
-                    ]);
-                    $internalCats[$cat->CategoryCode] = $dbCat->id;
+                    $categoriesList[] = $cat;
                 }
             },
-            '2',
+            null,
             50,
-            $timestamps['categories-2'] ?? null,
+            $timestamps['categories'] ?? null,
         );
 
-        $this->client->traverseCategories(
-            function (PaginatedResponse $response) use (&$internalCats) {
-                foreach ($response->Value as $cat) {
-                    $parent_id = isset($internalCats[$cat->ParentCategoryCode]) ? $internalCats[$cat->ParentCategoryCode] : null;
-                    $dbCat = ProductCategory::updateOrCreate([
-                        'author_id' => config('larapress.giv.author_id'),
-                        'name' => 'giv-' . $cat->CategoryCode,
-                    ], [
-                        'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-                        'parent_id' => $parent_id,
-                        'data' => [
-                            'title' => $cat->CategoryName,
-                            'order' => $cat->OrderIndex,
-                            'showOnProductCard' => $cat->VirtualSaleActive,
-                            'isFilterable' => $cat->VirtualSaleActive,
-                            'showInFrontFilters' => $cat->VirtualSaleActive,
-                            'queryFrontEnd' => $cat->VirtualSaleActive,
-                            'giv' => [
-                                'code' => $cat->CategoryCode,
-                                'active' => $cat->CategoryIsActive,
-                                'virtualSale' => $cat->VirtualSaleActive,
-                            ],
+        usort($categoriesList, function (Category $a, Category $b) {
+            return $a->CategoryCode <=> $b->CategoryCode;
+        });
+
+        foreach ($categoriesList as $cat) {
+            if ($cat->CategoryCode <= 99) {
+                $dbCat = ProductCategory::withTrashed()->updateOrCreate([
+                    'author_id' => config('larapress.giv.author_id'),
+                    'name' => 'giv-' . $cat->CategoryCode,
+                ], [
+                    'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
+                    'parent_id' => null,
+                    'data' => [
+                        'title' => $cat->CategoryName,
+                        'order' => $cat->OrderIndex,
+                        'showOnProductCard' => $cat->VirtualSaleActive,
+                        'isFilterable' => $cat->VirtualSaleActive,
+                        'showInFrontFilters' => false,
+                        'queryFrontEnd' => false,
+                        'giv' => [
+                            'code' => $cat->CategoryCode,
+                            'active' => $cat->CategoryIsActive,
+                            'virtualSale' => $cat->VirtualSaleActive,
                         ],
-                    ]);
-                    $internalCats[$cat->CategoryCode] = $dbCat->id;
-                }
-            },
-            '3',
-            50,
-            $timestamps['categories-3'] ?? null,
-        );
+                    ],
+                ]);
+                $internalCats[$cat->CategoryCode] = $dbCat->id;
+            } else {
+                $parentCode = floor($cat->CategoryCode / 100);
+                $parent_id = $parentCode > 99 && isset($internalCats[$parentCode]) ? $internalCats[$parentCode] : null;
+                $dbCat = ProductCategory::withTrashed()->updateOrCreate([
+                    'author_id' => config('larapress.giv.author_id'),
+                    'name' => 'giv-' . $cat->CategoryCode,
+                ], [
+                    'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
+                    'parent_id' => $parent_id,
+                    'data' => [
+                        'title' => $cat->CategoryName,
+                        'order' => $cat->OrderIndex,
+                        'showOnProductCard' => $cat->VirtualSaleActive,
+                        'isFilterable' => $cat->VirtualSaleActive,
+                        'showInFrontFilters' => $cat->VirtualSaleActive,
+                        'queryFrontEnd' => $cat->VirtualSaleActive,
+                        'giv' => [
+                            'code' => $cat->CategoryCode,
+                            'active' => $cat->CategoryIsActive,
+                            'virtualSale' => $cat->VirtualSaleActive,
+                        ],
+                    ],
+                ]);
+                $internalCats[$cat->CategoryCode] = $dbCat->id;
+            }
+        }
 
         $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
         $this->setSyncTimestamps(array_merge($timestamps, [
-            'categories-1' => $now,
-            'categories-2' => $now,
-            'categories-3' => $now,
+            'categories' => $now,
         ]));
     }
 
@@ -309,9 +282,9 @@ class GivSyncronizer
         $colorFilterIds = $colorFilters->keyBy('name');
         foreach ($inventory as &$item) {
             /** @var Filter */
-            $colorFilter = $colorFilterIds->get('id'.$item['ref']);
+            $colorFilter = $colorFilterIds->get('id' . $item['ref']);
             if (!is_null($colorFilter) && isset($colorFilter->data['hex']) && !empty($colorFilter->data['hex'])) {
-                $item['color'] = '#'.$colorFilter->data['hex'];
+                $item['color'] = '#' . $colorFilter->data['hex'];
             }
         }
 
@@ -425,5 +398,16 @@ class GivSyncronizer
                 ]
             ]);
         }
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param Cart $cart
+     * @return void
+     */
+    public function syncCart(Cart $cart)
+    {
+
     }
 }

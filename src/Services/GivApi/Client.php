@@ -7,6 +7,7 @@ use Larapress\CRUD\Extend\Helpers;
 use Larapress\ECommerce\IECommerceUser;
 use Larapress\FileShare\Models\FileUpload;
 use Illuminate\Support\Str;
+use Larapress\ECommerce\Models\Cart;
 use Larapress\ECommerce\Services\Cart\ICart;
 
 class Client
@@ -36,11 +37,11 @@ class Client
      *
      * @return void
      */
-    public function traverseCategories(callable $callback, $level = '1', $limit = 10, string|null $lastDate = null)
+    public function traverseCategories(callable $callback, $level = null, $limit = 10, string|null $lastDate = null)
     {
         $this->traverseRecords(
             $callback,
-            '/api/itemcategoryl' . $level,
+            is_null($level) ? '/api/itemcategory' : '/api/itemcategoryl' . $level,
             'GET',
             array_merge([
                 'count' => $limit,
@@ -130,12 +131,6 @@ class Client
      */
     public function checkQOH(int $itemId, int $itemParentId, int $lastDate = null)
     {
-
-    }
-
-    public function sendOrder(ICart $cart)
-    {
-
     }
 
     /**
@@ -223,13 +218,13 @@ class Client
                 'City' => $user->addresses[0]?->city_code ?? null,
                 'PostalCode' => $user->addresses[0]?->postal_code ?? null,
                 'SexCode' => $user->form_profile_default?->data['values']['gender'] ?? null,
+                'Description' => 'Website User',
                 'IsActive' => true,
                 'DateCreated' => $user->created_at->format(config('larapress.giv.datetime_format')),
             ],
-            [
-                'Value' => 'object:' . \Larapress\Giv\Services\GivApi\Customer::class,
-            ]
-        ));
+        ), [
+            'Value' => 'object:' . \Larapress\Giv\Services\GivApi\Customer::class,
+        ]);
 
         if ($response->Code === 1) {
             return $response->Value;
@@ -241,21 +236,45 @@ class Client
     /**
      * Undocumented function
      *
-     * @param string|null $date
-     * @param integer $limit
-     *
-     * @return stdClass[]
+     * @param ICart $cart
+     * @return void
      */
-    public function getCustomersPaginated($limit = 10, string|null $lastdate = null)
+    public function sendOrder(Cart $cart)
     {
-        return $this->callPaginatedMethod(
+        $persionId = $cart->customer->giv_user_form?->data['values']['PersonID'] ?? null;
+        $address = $cart->getDeliveryAddress();
+
+        if (is_null($persionId)) {
+            throw new Exception("PersionID could not be found for cart $cart->id");
+        }
+        if (is_null($address)) {
+            throw new Exception("Delivery address is not set for cart $cart->id");
+        }
+
+        $response = new PaginatedResponse($this->callMethod(
             '/api/customer',
-            'GET',
+            'POST',
             [
-                'count' => $limit,
-                'lastdate' => $lastdate,
+                'PersonID' => $persionId,
+                'No' => $cart->id,
+                'SourceID' => $cart->id,
+                'PaymentType' => 'ONLINE',
+                'Type' => 'SALE',
+                'PaymentStatus' => 'PAYMENT_STATUS_SUCCESSFUL',
+                'PackingCost' => $cart->getDeliveryPrice(),
+                'TransferCost' => $cart->getDeliveryPrice(),
+                'TotalPrice' => $cart->amount,
+                'TotalQuantity' => count($cart->getProductIds()),
+                'TotalDiscount' => $cart->getGiftCodeUsage()?->amount ?? 0,
+                'ReceiverAddress' => $address->address,
+                'PostRefCode' => $address->postal_code,
+                'DateCreated' => $cart->getPeriodStart()->format(config('larapress.giv.datetime_format')),
+
             ],
-        );
+        ), [
+            'Value' => 'object:' . \Larapress\Giv\Services\GivApi\Customer::class,
+        ]);
+
     }
 
     /**
@@ -335,7 +354,7 @@ class Client
         $items = $paginated->Value;
         $total += $paginated->ResultSize;
         while ($total < $paginated->TotalCount && $paginated->ResultSize > 0) {
-            $paginated = $this->callPaginatedMethod('/api/itemcategoryl1', 'GET', [
+            $paginated = $this->callPaginatedMethod($url, $method, [
                 ...$params,
                 'lastdate' => $paginated->Value[$paginated->ResultSize - 1]->LastDate,
             ], $casts);

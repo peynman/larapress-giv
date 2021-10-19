@@ -2,6 +2,7 @@
 
 namespace Larapress\Giv\Commands;
 
+use App\Models\User;
 use Illuminate\Console\Command;
 use Larapress\Giv\Services\GivSyncronizer;
 

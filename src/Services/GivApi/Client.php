@@ -7,8 +7,10 @@ use Larapress\CRUD\Extend\Helpers;
 use Larapress\ECommerce\IECommerceUser;
 use Larapress\FileShare\Models\FileUpload;
 use Illuminate\Support\Str;
+use Larapress\ECommerce\Models\BankGatewayTransaction;
 use Larapress\ECommerce\Models\Cart;
 use Larapress\ECommerce\Services\Cart\ICart;
+use Larapress\Profiles\Models\Filter;
 
 class Client
 {
@@ -239,10 +241,15 @@ class Client
      * @param ICart $cart
      * @return void
      */
-    public function sendOrder(Cart $cart)
+    public function updateOrder(Cart $cart)
     {
-        $persionId = $cart->customer->giv_user_form?->data['values']['PersonID'] ?? null;
+        $customer = $cart->customer;
+        $persionId = $customer->giv_user_form?->data['values']['PersonID'] ?? null;
         $address = $cart->getDeliveryAddress();
+        $fullname = [
+            $customer->form_profile_default?->data['values']['firstname'] ?? null,
+            $customer->form_profile_default?->data['values']['lastname'] ?? null,
+        ];
 
         if (is_null($persionId)) {
             throw new Exception("PersionID could not be found for cart $cart->id");
@@ -251,30 +258,46 @@ class Client
             throw new Exception("Delivery address is not set for cart $cart->id");
         }
 
+        $province = Filter::query()->where('type', 'province')->where('name', 'province-0-'.$address->province_code)->first();
+        $city = Filter::query()->where('type', 'city')->where('name', 'city-0-'.$address->province_code.'-'.$address->city_code)->first();
+
+        /** @var BankGatewayTransaction */
+        $transaction = BankGatewayTransaction::query()->where('cart_id', $cart->id)->first();
+
         $response = new PaginatedResponse($this->callMethod(
-            '/api/customer',
+            '/api/order',
             'POST',
             [
                 'PersonID' => $persionId,
                 'No' => $cart->id,
                 'SourceID' => $cart->id,
-                'PaymentType' => 'ONLINE',
+                'Description' => 'Website Cart: '.$cart->getDeliveryAgentName(),
                 'Type' => 'SALE',
                 'PaymentStatus' => 'PAYMENT_STATUS_SUCCESSFUL',
-                'PackingCost' => $cart->getDeliveryPrice(),
+                'CreditUsed' => 0,
+                'PackingCost' => 0,
                 'TransferCost' => $cart->getDeliveryPrice(),
                 'TotalPrice' => $cart->amount,
                 'TotalQuantity' => count($cart->getProductIds()),
                 'TotalDiscount' => $cart->getGiftCodeUsage()?->amount ?? 0,
-                'ReceiverAddress' => $address->address,
+                'ReceiverName' => implode(' ', $fullname),
                 'PostRefCode' => $address->postal_code,
-                'DateCreated' => $cart->getPeriodStart()->format(config('larapress.giv.datetime_format')),
-
+                'ReceiverPostalCode' => $address->postal_code,
+                'ReceiverProvinceID' => $address->province_code,
+                'ReceiverMobile' => $customer->phones[0]->number,
+                'ReceiverCity' => $province->data['title'].' '.$city->data['title'],
+                'ReceiverAddress' => $address->address,
+                'PaymentBankRefCode' => $transaction->reference_code,
+                'PaymentBank' => $transaction->bank_gateway->name,
+                'Date' => '1400/06/14',
+                'DateCreated' => '1400/06/14',
+                'DateChanged' => '1400/06/14',
+                'DateCreated' => '1400/06/14',
+                'EffectiveDate' => '1400/06/14',
             ],
-        ), [
-            'Value' => 'object:' . \Larapress\Giv\Services\GivApi\Customer::class,
-        ]);
+        ));
 
+        dd($response->Value);
     }
 
     /**

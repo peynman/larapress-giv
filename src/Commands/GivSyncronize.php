@@ -4,6 +4,7 @@ namespace Larapress\Giv\Commands;
 
 use App\Models\User;
 use Illuminate\Console\Command;
+use Larapress\ECommerce\Models\Cart;
 use Larapress\Giv\Services\GivSyncronizer;
 
 class GivSyncronize extends Command
@@ -41,6 +42,8 @@ class GivSyncronize extends Command
     {
         ini_set('memory_limit', '2G');
         $syncer = new GivSyncronizer();
+
+        // $syncer->syncCart(Cart::find(12));
 
         switch ($this->argument('subject')) {
             case 'categories':

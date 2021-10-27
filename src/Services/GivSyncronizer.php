@@ -13,6 +13,7 @@ use Larapress\Profiles\Models\FormEntry;
 use Illuminate\Support\Str;
 use Larapress\ECommerce\Models\Cart;
 use Larapress\ECommerce\Models\Product;
+use Larapress\ECommerce\Services\Product\IProductRepository;
 use Larapress\FileShare\Models\FileUpload;
 use Larapress\FileShare\Services\FileUpload\IFileUploadService;
 use Larapress\Profiles\IProfileUser;
@@ -202,17 +203,25 @@ class GivSyncronizer
         $timestamps = $this->getSyncTimestamps();
 
         /** @var ProductCategory[] */
-        $cats = ProductCategory::query()->select('id', 'name')->get();
+        $cats = ProductCategory::query()
+            ->with(['parent', 'parent.parent'])
+            ->select('id', 'parent_id', 'name')
+            ->get();
+
+        /** @var IProductRepository */
+        $repo = app(IProductRepository::class);
 
         foreach ($cats as $cat) {
             if (Str::startsWith($cat->name, 'giv-')) {
                 $code = Str::substr($cat->name, Str::length('giv-'));
+                $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
                 $this->client->traverseProducts(
-                    function (PaginatedResponse $response) use ($cat) {
+                    function (PaginatedResponse $response) use ($catIds) {
+
                         foreach ($response->Value as $prod) {
                             $this->syncProduct(
                                 $prod->ItemCode,
-                                $cat->id,
+                                $catIds,
                                 $prod->ItemName,
                                 $prod->IsActive,
                                 $prod->ItemParentID,
@@ -239,12 +248,12 @@ class GivSyncronizer
      * Undocumented function
      *
      * @param integer $itemCode
-     * @param integer $catId
+     * @param integer $catIds
      * @return void
      */
     public function syncProduct(
         int $itemCode,
-        int $catId,
+        array $catIds,
         string $title,
         bool $isActive,
         $prodParentId = null,
@@ -318,11 +327,15 @@ class GivSyncronizer
                     );
                     // remove temp download
                     unlink($localPath);
+
+                    $imgWidth = $fileUpload->data['dimentions']['width'] ?? config('larapress.giv.product_default_image_width');
+                    $imgHeight = $fileUpload->data['dimentions']['height'] ?? config('larapress.giv.product_default_image_height');
                     $images[] = [
                         'image' => '/storage' . $fileUpload->path,
-                        'width' => $fileUpload->data['dimentions']['width'] ?? config('larapress.giv.product_default_image_width'),
-                        'width' => $fileUpload->data['dimentions']['height'] ?? config('larapress.giv.product_default_image_height'),
+                        'width' => $imgWidth,
+                        'height' => $imgHeight,
                         'ref' => $prodImage->ColorID,
+                        'aspect' => floatval($imgWidth) / floatval($imgHeight),
                         'fileId' => $fileUpload->id,
                         'index' => $prodImage->ImageIndex,
                     ];
@@ -337,7 +350,7 @@ class GivSyncronizer
             'data' => [
                 'title' => $title,
                 'fixedPrice' => [
-                    'amount' => $stock->SellPrice,
+                    'amount' => floatval($stock->SellPrice) / 10,
                     'currency' => config('larapress.ecommerce.banking.currency.id'),
                 ],
                 'quantized' => true,
@@ -363,9 +376,7 @@ class GivSyncronizer
         }
 
         $existingProd->types()->sync([1, 2, 3]);
-        if (!is_null($catId)) {
-            $existingProd->categories()->sync([$catId]);
-        }
+        $existingProd->categories()->sync($catIds);
     }
 
     /**
@@ -408,6 +419,7 @@ class GivSyncronizer
      */
     public function syncCart(Cart $cart)
     {
-
+        $this->syncUser($cart->customer);
+        $this->client->updateOrder($cart);
     }
 }

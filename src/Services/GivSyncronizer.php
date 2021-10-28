@@ -297,7 +297,7 @@ class GivSyncronizer
             }
         }
 
-        $existingProd = Product::query()->where('author_id', config('larapress.giv.author_id'))->where('name', 'giv-' . $itemCode)->first();
+        $existingProd = Product::withTrashed()->where('author_id', config('larapress.giv.author_id'))->where('name', 'giv-' . $itemCode)->first();
         $existingImages = Collection::make($existingProd?->data['types']['images']['slides'] ?? []);
 
         $prodImages = $this->client->getProductImages($prodParentId, $lastDate);
@@ -420,6 +420,7 @@ class GivSyncronizer
     public function syncCart(Cart $cart)
     {
         $this->syncUser($cart->customer);
+        $cart->customer->load('giv_user_form');
         $this->client->updateOrder($cart);
     }
 }

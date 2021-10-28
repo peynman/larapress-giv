@@ -15,8 +15,11 @@ class CartListener implements ShouldQueue
         $cart = $event->getCart();
 
         if ($cart->status === Cart::STATUS_ACCESS_COMPLETE) {
-            $syncer = new GivSyncronizer();
-            $syncer->syncCart($cart);
+            $synced = isset($cart->data['synced']) ? true : false;
+            if (!$synced) {
+                $syncer = new GivSyncronizer();
+                $syncer->syncCart($cart);
+            }
         }
     }
 }

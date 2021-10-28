@@ -43,8 +43,6 @@ class GivSyncronize extends Command
         ini_set('memory_limit', '2G');
         $syncer = new GivSyncronizer();
 
-        // $syncer->syncCart(Cart::find(12));
-
         switch ($this->argument('subject')) {
             case 'categories':
                 $syncer->syncCategories();

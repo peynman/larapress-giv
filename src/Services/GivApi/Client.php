@@ -9,6 +9,7 @@ use Larapress\FileShare\Models\FileUpload;
 use Illuminate\Support\Str;
 use Larapress\ECommerce\Models\BankGatewayTransaction;
 use Larapress\ECommerce\Models\Cart;
+use Larapress\ECommerce\Services\Cart\Base\CartProductPurchaseDetails;
 use Larapress\ECommerce\Services\Cart\ICart;
 use Larapress\Profiles\Models\Filter;
 
@@ -258,46 +259,85 @@ class Client
             throw new Exception("Delivery address is not set for cart $cart->id");
         }
 
-        $province = Filter::query()->where('type', 'province')->where('name', 'province-0-'.$address->province_code)->first();
-        $city = Filter::query()->where('type', 'city')->where('name', 'city-0-'.$address->province_code.'-'.$address->city_code)->first();
+        $province = Filter::query()->where('type', 'province')->where('name', 'province-0-' . $address->province_code)->first();
+        $city = Filter::query()->where('type', 'city')->where('name', 'city-0-' . $address->province_code . '-' . $address->city_code)->first();
+        $orderId = isset($cart->data['givOrderId']) ? $cart->data['givOrderId'] : -1;
 
         /** @var BankGatewayTransaction */
         $transaction = BankGatewayTransaction::query()->where('cart_id', $cart->id)->first();
 
+        $date = $cart->getPeriodStart()->format(config('larapress.giv.datetime_format'));
         $response = new PaginatedResponse($this->callMethod(
             '/api/order',
             'POST',
             [
+                'OrderID' => $orderId,
                 'PersonID' => $persionId,
                 'No' => $cart->id,
                 'SourceID' => $cart->id,
-                'Description' => 'Website Cart: '.$cart->getDeliveryAgentName(),
+                'Description' => 'Website Cart: ' . $cart->getDeliveryAgentName(),
                 'Type' => 'SALE',
                 'PaymentStatus' => 'PAYMENT_STATUS_SUCCESSFUL',
+                'PaymentType' => 'ONLINE',
                 'CreditUsed' => 0,
                 'PackingCost' => 0,
-                'TransferCost' => $cart->getDeliveryPrice(),
-                'TotalPrice' => $cart->amount,
-                'TotalQuantity' => count($cart->getProductIds()),
-                'TotalDiscount' => $cart->getGiftCodeUsage()?->amount ?? 0,
+                'TransferCost' => $cart->getDeliveryPrice() * 10,
+                'TotalPrice' => $cart->amount * 10,
+                'TotalQuantity' => $cart->getTotalQuantity(),
+                'TotalDiscount' => $cart->getGiftCodeUsage()?->amount * 10 ?? 0,
                 'ReceiverName' => implode(' ', $fullname),
                 'PostRefCode' => $address->postal_code,
                 'ReceiverPostalCode' => $address->postal_code,
                 'ReceiverProvinceID' => $address->province_code,
                 'ReceiverMobile' => $customer->phones[0]->number,
-                'ReceiverCity' => $province->data['title'].' '.$city->data['title'],
+                'ReceiverCity' => $province->data['title'] . ' ' . $city->data['title'],
                 'ReceiverAddress' => $address->address,
                 'PaymentBankRefCode' => $transaction->reference_code,
                 'PaymentBank' => $transaction->bank_gateway->name,
-                'Date' => '1400/06/14',
-                'DateCreated' => '1400/06/14',
-                'DateChanged' => '1400/06/14',
-                'DateCreated' => '1400/06/14',
-                'EffectiveDate' => '1400/06/14',
+                'Date' => $date,
+                'DateCreated' => $date,
+                'DateChanged' => $date,
+                'DateCreated' => $date,
+                'EffectiveDate' => $date,
             ],
-        ));
+        ), [
+            'Value' => 'object:' . \Larapress\Giv\Services\GivApi\Order::class,
+        ]);
 
-        dd($response->Value);
+        /** @var Order */
+        $order = $response->Value;
+
+        $products = $cart->products;
+        $indexer = 1;
+        foreach ($products as $product) {
+            $details = new CartProductPurchaseDetails($product->pivot->data);
+
+            $this->callMethod(
+                '/api/orderrow',
+                'POST',
+                [
+                    'OrderID' => $order->OrderID,
+                    'RowID' => $indexer,
+                    'ItemID' => $details->extra['itemId'],
+                    'Quantity' => $details->quantity,
+                    'Fee' => $details->amount * 10,
+                    'RowDiscount' => $details->offAmount * 10,
+                    'TotalDiscount' => $details->offAmount * 10,
+                    'VatValue' => 0,
+                    'DateCreated' => $date,
+                    'DateChanged' => $date,
+                ]
+            );
+
+            $indexer++;
+        }
+
+        $data = $cart->data;
+        $data['givOrderId'] = $order->OrderID;
+        $data['synced'] = true;
+        $cart->update([
+            'data' => $data,
+        ]);
     }
 
     /**

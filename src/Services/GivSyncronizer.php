@@ -11,6 +11,7 @@ use Larapress\Giv\Services\GivApi\Client;
 use Larapress\Giv\Services\GivApi\PaginatedResponse;
 use Larapress\Profiles\Models\FormEntry;
 use Illuminate\Support\Str;
+use Larapress\CRUD\Services\Persian\PersianText;
 use Larapress\ECommerce\Models\Cart;
 use Larapress\ECommerce\Models\Product;
 use Larapress\ECommerce\Services\Product\IProductRepository;
@@ -19,6 +20,7 @@ use Larapress\FileShare\Services\FileUpload\IFileUploadService;
 use Larapress\Profiles\IProfileUser;
 use Larapress\Profiles\Models\Filter;
 use Larapress\Giv\Services\GivApi\Category;
+use Larapress\Giv\Services\GivApi\ProductStock;
 
 class GivSyncronizer
 {
@@ -112,7 +114,7 @@ class GivSyncronizer
                     'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
                     'parent_id' => null,
                     'data' => [
-                        'title' => $cat->CategoryName,
+                        'title' => PersianText::standard($cat->CategoryName),
                         'order' => $cat->OrderIndex,
                         'showOnProductCard' => $cat->VirtualSaleActive,
                         'isFilterable' => $cat->VirtualSaleActive,
@@ -136,7 +138,7 @@ class GivSyncronizer
                     'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
                     'parent_id' => $parent_id,
                     'data' => [
-                        'title' => $cat->CategoryName,
+                        'title' => PersianText::standard($cat->CategoryName),
                         'order' => $cat->OrderIndex,
                         'showOnProductCard' => $cat->VirtualSaleActive,
                         'isFilterable' => $cat->VirtualSaleActive,
@@ -178,7 +180,7 @@ class GivSyncronizer
                         'zorder' => $color->OrderIndex,
                         'data' => [
                             'hex' => $color->ColorHex,
-                            'name' => $color->ItemColorName,
+                            'name' => PersianText::standard($color->ItemColorName),
                         ]
                     ]);
                 }
@@ -222,7 +224,7 @@ class GivSyncronizer
                             $this->syncProduct(
                                 $prod->ItemCode,
                                 $catIds,
-                                $prod->ItemName,
+                                PersianText::standard($prod->ItemName),
                                 $prod->IsActive,
                                 $prod->ItemParentID,
                                 $timestamps['products'] ?? null
@@ -260,9 +262,57 @@ class GivSyncronizer
         $lastDate = null
     ) {
         $stock = $this->client->getProductsStock($itemCode);
-        $inventory = [];
-        $images = [];
+        $existingProd = Product::withTrashed()
+            ->where('author_id', config('larapress.giv.author_id'))
+            ->where('name', 'giv-' . $itemCode)
+            ->first();
 
+        $inventory = $this->syncProductStock($stock, $prodParentId);
+        $images = []; // $this->syncProductImages($itemCode, $existingProd, $prodParentId, $lastDate);
+
+        $attrs = [
+            'deleted_at' => $isActive ? null : Carbon::now(),
+            'data' => [
+                'title' => $title,
+                'fixedPrice' => [
+                    'amount' => floatval($stock->SellPrice) / 10,
+                    'currency' => config('larapress.ecommerce.banking.currency.id'),
+                ],
+                'quantized' => true,
+                'types' => [
+                    'cellar' => [
+                        'inventory' => $inventory,
+                    ],
+                    'images' => [
+                        'slides' => $images,
+                    ],
+                ],
+            ]
+        ];
+
+        /** @var Product */
+        if (!is_null($existingProd)) {
+            $existingProd->update($attrs);
+        } else {
+            $existingProd = Product::create(array_merge($attrs, [
+                'author_id' => config('larapress.giv.author_id'),
+                'name' => 'giv-' . $itemCode,
+            ]));
+        }
+
+        $existingProd->types()->sync([1, 2, 3]);
+        $existingProd->categories()->sync($catIds);
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param ProductStock $stock
+     * @param int|null $prodParentId
+     * @return array
+     */
+    protected function syncProductStock(ProductStock $stock, $prodParentId) {
+        $inventory = [];
         $colorIds = [];
 
         if ($stock?->Table?->TableData) {
@@ -297,9 +347,26 @@ class GivSyncronizer
             }
         }
 
-        $existingProd = Product::withTrashed()->where('author_id', config('larapress.giv.author_id'))->where('name', 'giv-' . $itemCode)->first();
-        $existingImages = Collection::make($existingProd?->data['types']['images']['slides'] ?? []);
+        return $inventory;
+    }
 
+    /**
+     * Undocumented function
+     *
+     * @param int $itemCode
+     * @param Product|null $existingProd
+     * @param  $prodParentId
+     * @param [type] $lastDate
+     * @return array
+     */
+    protected function syncProductImages(
+        $itemCode,
+        $existingProd,
+        $prodParentId,
+        $lastDate
+    ) {
+        $images = [];
+        $existingImages = Collection::make($existingProd?->data['types']['images']['slides'] ?? []);
         $prodImages = $this->client->getProductImages($prodParentId, $lastDate);
         foreach ($prodImages as $prodImage) {
             $existingImage = $existingImages->first(function ($img) use ($prodImage) {
@@ -345,38 +412,7 @@ class GivSyncronizer
             }
         }
 
-        $attrs = [
-            'deleted_at' => $isActive ? null : Carbon::now(),
-            'data' => [
-                'title' => $title,
-                'fixedPrice' => [
-                    'amount' => floatval($stock->SellPrice) / 10,
-                    'currency' => config('larapress.ecommerce.banking.currency.id'),
-                ],
-                'quantized' => true,
-                'types' => [
-                    'cellar' => [
-                        'inventory' => $inventory,
-                    ],
-                    'images' => [
-                        'slides' => $images,
-                    ],
-                ],
-            ]
-        ];
-
-        /** @var Product */
-        if (!is_null($existingProd)) {
-            $existingProd->update($attrs);
-        } else {
-            $existingProd = Product::create(array_merge($attrs, [
-                'author_id' => config('larapress.giv.author_id'),
-                'name' => 'giv-' . $itemCode,
-            ]));
-        }
-
-        $existingProd->types()->sync([1, 2, 3]);
-        $existingProd->categories()->sync($catIds);
+        return $images;
     }
 
     /**

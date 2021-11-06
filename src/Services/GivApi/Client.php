@@ -236,6 +236,35 @@ class Client
         return null;
     }
 
+
+    function gregorian_to_jalali($gy, $gm, $gd)
+    {
+        $g_d_m = array(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334);
+        $gy2 = ($gm > 2) ? ($gy + 1) : $gy;
+        $days = 355666 + (365 * $gy) + ((int)(($gy2 + 3) / 4)) - ((int)(($gy2 + 99) / 100)) + ((int)(($gy2 + 399) / 400)) + $gd + $g_d_m[$gm - 1];
+        $jy = -1595 + (33 * ((int)($days / 12053)));
+        $days %= 12053;
+        $jy += 4 * ((int)($days / 1461));
+        $days %= 1461;
+        if ($days > 365) {
+            $jy += (int)(($days - 1) / 365);
+            $days = ($days - 1) % 365;
+        }
+        if ($days < 186) {
+            $jm = 1 + (int)($days / 31);
+            $jd = 1 + ($days % 31);
+        } else {
+            $jm = 7 + (int)(($days - 186) / 30);
+            $jd = 1 + (($days - 186) % 30);
+        }
+        return array(
+            str_pad($jy.'', 4, '0', STR_PAD_LEFT),
+            str_pad($jm.'', 2, '0', STR_PAD_LEFT),
+            str_pad($jd.'', 2, '0', STR_PAD_LEFT)
+        );
+    }
+
+
     /**
      * Undocumented function
      *
@@ -266,7 +295,10 @@ class Client
         /** @var BankGatewayTransaction */
         $transaction = BankGatewayTransaction::query()->where('cart_id', $cart->id)->first();
 
-        $date = $cart->getPeriodStart()->format(config('larapress.giv.datetime_format'));
+        $periodStart = $cart->getPeriodStart();
+        $date = $periodStart->format(config('larapress.giv.datetime_format'));
+        $farsiDate = implode('', $this->gregorian_to_jalali($periodStart->year, $periodStart->month, $periodStart->day));
+
         $response = new PaginatedResponse($this->callMethod(
             '/api/order',
             'POST',
@@ -294,11 +326,10 @@ class Client
                 'ReceiverAddress' => $address->address,
                 'PaymentBankRefCode' => $transaction->reference_code,
                 'PaymentBank' => $transaction->bank_gateway->name,
-                'Date' => $date,
+                'Date' => $farsiDate,
+                'EffectiveDate' => $farsiDate,
                 'DateCreated' => $date,
                 'DateChanged' => $date,
-                'DateCreated' => $date,
-                'EffectiveDate' => $date,
             ],
         ), [
             'Value' => 'object:' . \Larapress\Giv\Services\GivApi\Order::class,

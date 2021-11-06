@@ -50,7 +50,7 @@ class Order extends CastableClassArray
         'ReceiverProvinceID' => 'number',
         'DateCreated' => 'date',
         'DateChanged' => 'date',
-        'Date' => 'date',
-        'EffectiveDate' => 'date',
+        'Date' => 'number',
+        'EffectiveDate' => 'number',
     ];
 }

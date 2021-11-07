@@ -321,7 +321,7 @@ class Client
                 'PostRefCode' => $address->postal_code,
                 'ReceiverPostalCode' => $address->postal_code,
                 'ReceiverProvinceID' => $address->province_code,
-                'ReceiverMobile' => $customer->phones[0]->number,
+                'ReceiverMobile' => $customer->phones[0]?->number ?? null,
                 'ReceiverCity' => $province->data['title'] . ' ' . $city->data['title'],
                 'ReceiverAddress' => $address->address,
                 'PaymentBankRefCode' => $transaction->reference_code,

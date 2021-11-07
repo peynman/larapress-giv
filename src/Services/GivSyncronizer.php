@@ -268,7 +268,7 @@ class GivSyncronizer
             ->first();
 
         $inventory = $this->syncProductStock($stock, $prodParentId);
-        $images = []; // $this->syncProductImages($itemCode, $existingProd, $prodParentId, $lastDate);
+        $images = $this->syncProductImages($itemCode, $existingProd, $prodParentId, $lastDate);
 
         $attrs = [
             'deleted_at' => $isActive ? null : Carbon::now(),

@@ -279,6 +279,7 @@ class GivSyncronizer
                     'currency' => config('larapress.ecommerce.banking.currency.id'),
                 ],
                 'quantized' => true,
+                'maxQuantity' => -1,
                 'types' => [
                     'cellar' => [
                         'inventory' => $inventory,

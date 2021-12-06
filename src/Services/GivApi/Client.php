@@ -298,6 +298,7 @@ class Client
         $periodStart = $cart->getPeriodStart();
         $date = $periodStart->format(config('larapress.giv.datetime_format'));
         $farsiDate = implode('', $this->gregorian_to_jalali($periodStart->year, $periodStart->month, $periodStart->day));
+        $discount = $cart->getGiftCodeUsage()?->amount * 10 ?? 0;
 
         $response = new PaginatedResponse($this->callMethod(
             '/api/order',
@@ -316,7 +317,7 @@ class Client
                 'TransferCost' => $cart->getDeliveryPrice() * 10,
                 'TotalPrice' => $cart->amount * 10,
                 'TotalQuantity' => $cart->getTotalQuantity(),
-                'TotalDiscount' => $cart->getGiftCodeUsage()?->amount * 10 ?? 0,
+                'TotalDiscount' => $discount,
                 'ReceiverName' => implode(' ', $fullname),
                 'PostRefCode' => $address->postal_code,
                 'ReceiverPostalCode' => $address->postal_code,

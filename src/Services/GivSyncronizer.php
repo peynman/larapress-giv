@@ -185,8 +185,8 @@ class GivSyncronizer
                     ]);
                 }
             },
-            100,
-            $timestamps['colors'] ?? null,
+            500,
+            null,
         );
 
         $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
@@ -198,10 +198,54 @@ class GivSyncronizer
     /**
      * Undocumented function
      *
+     * @param string $code
+     * @param string $cat
+     * @return void
+     */
+    public function syncProductByCode($itemCode, $cat)
+    {
+        /** @var ProductCategory */
+        $cat = ProductCategory::find($cat);
+
+        /** @var IProductRepository */
+        $repo = app(IProductRepository::class);
+
+        if (Str::startsWith($cat->name, 'giv-')) {
+            $code = Str::substr($cat->name, Str::length('giv-'));
+            $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
+            $this->client->traverseProducts(
+                function (PaginatedResponse $response) use ($catIds, $itemCode) {
+                    foreach ($response->Value as $prod) {
+                        if ($prod->ItemCode == $itemCode) {
+                            $this->syncProduct(
+                                $prod->ItemCode,
+                                $catIds,
+                                PersianText::standard($prod->ItemName),
+                                $prod->IsActive,
+                                $prod->ItemParentID,
+                                null,
+                                true
+                            );
+                            return 'stop';
+                        }
+                    }
+                },
+                $code,
+                null,
+                50,
+                null
+            );
+        }
+    }
+
+    /**
+     * Undocumented function
+     *
      * @param Product|number|string $id
      * @return void
      */
-    public function syncProductById ($product) {
+    public function syncProductById($product)
+    {
         if (!is_object($product)) {
             $product = Product::find($product);
         }
@@ -210,7 +254,7 @@ class GivSyncronizer
         $inner = null;
         foreach ($cats as $category) {
             if (Str::startsWith($category->name, 'giv-')) {
-                if (is_null($inner) || $inner->id > $category->id) {
+                if (is_null($inner) || $inner->id < $category->id) {
                     $inner = $category;
                 }
             }
@@ -227,6 +271,7 @@ class GivSyncronizer
                 function (PaginatedResponse $response) use ($catIds, $givCode) {
                     foreach ($response->Value as $prod) {
                         if ($prod->ItemCode == $givCode) {
+                            dd('found');
                             $this->syncProduct(
                                 $prod->ItemCode,
                                 $catIds,
@@ -372,7 +417,8 @@ class GivSyncronizer
      * @param int|null $prodParentId
      * @return array
      */
-    protected function syncProductStock(ProductStock $stock, $prodParentId) {
+    protected function syncProductStock(ProductStock $stock, $prodParentId)
+    {
         $inventory = [];
         $colorIds = [];
 

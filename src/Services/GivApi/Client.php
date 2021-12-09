@@ -409,6 +409,7 @@ class Client
     {
         $total = 0;
         $items = [];
+        $limit = $params['count'] ?? 10;
 
         $paginated = $this->callPaginatedMethod($url, $method, $params, $casts);
         $items = $paginated->Value;
@@ -416,13 +417,16 @@ class Client
 
         $callback($paginated);
 
-        while ($total < $paginated->TotalCount && $paginated->ResultSize > 0) {
+        while ($total < $paginated->TotalCount && $paginated->ResultSize === $limit) {
             $paginated = $this->callPaginatedMethod($url, $method, array_merge($params, [
                 'lastdate' => $paginated->Value[$paginated->ResultSize - 1]->LastDate,
             ]), $casts);
 
             if ($paginated->ResultSize > 0) {
-                $callback($paginated);
+                $result = $callback($paginated);
+                if ($result === 'stop') {
+                    break;
+                }
             }
 
             $total += $paginated->ResultSize;

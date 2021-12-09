@@ -97,7 +97,7 @@ class GivSyncronizer
                 }
             },
             null,
-            50,
+            100,
             $timestamps['categories'] ?? null,
         );
 
@@ -185,7 +185,7 @@ class GivSyncronizer
                     ]);
                 }
             },
-            50,
+            100,
             $timestamps['colors'] ?? null,
         );
 
@@ -193,6 +193,58 @@ class GivSyncronizer
         $this->setSyncTimestamps(array_merge($timestamps, [
             'colors' => $now,
         ]));
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param Product|number|string $id
+     * @return void
+     */
+    public function syncProductById ($product) {
+        if (!is_object($product)) {
+            $product = Product::find($product);
+        }
+
+        $cats = $product->categories;
+        $inner = null;
+        foreach ($cats as $category) {
+            if (Str::startsWith($category->name, 'giv-')) {
+                if (is_null($inner) || $inner->id > $category->id) {
+                    $inner = $category;
+                }
+            }
+        }
+
+        if (!is_null($inner)) {
+            /** @var IProductRepository */
+            $repo = app(IProductRepository::class);
+
+            $code = Str::substr($inner->name, Str::length('giv-'));
+            $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
+            $givCode = Str::substr($product->name, Str::length('giv-'));
+            $this->client->traverseProducts(
+                function (PaginatedResponse $response) use ($catIds, $givCode) {
+                    foreach ($response->Value as $prod) {
+                        if ($prod->ItemCode == $givCode) {
+                            $this->syncProduct(
+                                $prod->ItemCode,
+                                $catIds,
+                                PersianText::standard($prod->ItemName),
+                                $prod->IsActive,
+                                $prod->ItemParentID,
+                                null,
+                                true
+                            );
+                        }
+                    }
+                },
+                $code,
+                null,
+                50,
+                null
+            );
+        }
     }
 
     /**
@@ -233,7 +285,7 @@ class GivSyncronizer
                     },
                     $code,
                     null,
-                    10,
+                    50,
                     $dontSyncImages ? null : $timestamps['products'] ?? null
                 );
             }

@@ -14,7 +14,7 @@ class GivSyncronize extends Command
      *
      * @var string
      */
-    protected $signature = 'lp:giv:sync {subject : one of categories,products,stock,colors,timestamp}';
+    protected $signature = 'lp:giv:sync {subject : one of categories,products,stock,colors,timestamp,shop} {--id}';
 
     /**
      * The console command description.
@@ -47,6 +47,14 @@ class GivSyncronize extends Command
             case 'categories':
                 $syncer->syncCategories();
                 $this->info('Categories sync success');
+                break;
+            case 'shop':
+                $id = $this->options('id');
+                if (!is_null($id)) {
+                    $this->info('syncing product with id '.$id);
+                    $syncer->syncProductById($id);
+                }
+                $this->info('Shop sync success');
                 break;
             case 'stock':
                 $syncer->syncProducts(true);

@@ -314,7 +314,7 @@ class GivSyncronizer
                 $code = Str::substr($cat->name, Str::length('giv-'));
                 $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
                 $this->client->traverseProducts(
-                    function (PaginatedResponse $response) use ($catIds, $dontSyncImages) {
+                    function (PaginatedResponse $response) use ($catIds, $timestamps, $dontSyncImages) {
                         foreach ($response->Value as $prod) {
                             $this->syncProduct(
                                 $prod->ItemCode,
@@ -322,7 +322,7 @@ class GivSyncronizer
                                 PersianText::standard($prod->ItemName),
                                 $prod->IsActive,
                                 $prod->ItemParentID,
-                                $dontSyncImages ? null : $$timestamps['products'] ?? null,
+                                $dontSyncImages ? null : $timestamps['products'] ?? null,
                                 $dontSyncImages
                             );
                         }

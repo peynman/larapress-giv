@@ -271,7 +271,6 @@ class GivSyncronizer
                 function (PaginatedResponse $response) use ($catIds, $givCode) {
                     foreach ($response->Value as $prod) {
                         if ($prod->ItemCode == $givCode) {
-                            dd('found');
                             $this->syncProduct(
                                 $prod->ItemCode,
                                 $catIds,

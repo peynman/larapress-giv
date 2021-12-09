@@ -200,7 +200,7 @@ class GivSyncronizer
      *
      * @return void
      */
-    public function syncProducts()
+    public function syncProducts($dontSyncImages = false)
     {
         $timestamps = $this->getSyncTimestamps();
 
@@ -218,8 +218,7 @@ class GivSyncronizer
                 $code = Str::substr($cat->name, Str::length('giv-'));
                 $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
                 $this->client->traverseProducts(
-                    function (PaginatedResponse $response) use ($catIds) {
-
+                    function (PaginatedResponse $response) use ($catIds, $dontSyncImages) {
                         foreach ($response->Value as $prod) {
                             $this->syncProduct(
                                 $prod->ItemCode,
@@ -227,14 +226,15 @@ class GivSyncronizer
                                 PersianText::standard($prod->ItemName),
                                 $prod->IsActive,
                                 $prod->ItemParentID,
-                                $timestamps['products'] ?? null
+                                $dontSyncImages ? null : $$timestamps['products'] ?? null,
+                                $dontSyncImages
                             );
                         }
                     },
                     $code,
                     null,
                     10,
-                    $timestamps['products'] ?? null
+                    $dontSyncImages ? null : $timestamps['products'] ?? null
                 );
             }
         }
@@ -259,7 +259,8 @@ class GivSyncronizer
         string $title,
         bool $isActive,
         $prodParentId = null,
-        $lastDate = null
+        $lastDate = null,
+        $dontSyncImages = false
     ) {
         $stock = $this->client->getProductsStock($itemCode);
         $existingProd = Product::withTrashed()
@@ -268,7 +269,14 @@ class GivSyncronizer
             ->first();
 
         $inventory = $this->syncProductStock($stock, $prodParentId);
-        $images = $this->syncProductImages($itemCode, $existingProd, $prodParentId, $lastDate);
+        if (!$dontSyncImages) {
+            $images = [];
+            if (!is_null($existingProd)) {
+                $images = $existingProd->data['types']['images']['slides'];
+            }
+        } else {
+            $images = $this->syncProductImages($itemCode, $existingProd, $prodParentId, $lastDate);
+        }
 
         $attrs = [
             'deleted_at' => $isActive ? null : Carbon::now(),

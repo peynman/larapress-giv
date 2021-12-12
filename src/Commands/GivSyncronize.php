@@ -58,11 +58,11 @@ class GivSyncronize extends Command
                     $this->info('syncing product with code '.$id);
                     $syncer->syncProductByCode($id, $this->option('cat'));
                 }
-                $this->info('Shop sync success');
+                $this->info('Item sync success');
                 break;
             case 'stock':
                 $syncer->syncProducts(true);
-                $this->info('Products sync success');
+                $this->info('Product Stock sync success');
                 break;
             case 'products':
                 $syncer->syncProducts();

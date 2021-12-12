@@ -336,10 +336,12 @@ class GivSyncronizer
         }
 
 
-        $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
-        $this->setSyncTimestamps(array_merge($timestamps, [
-            'products' => $now,
-        ]));
+        if (!$dontSyncImages) {
+            $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
+            $this->setSyncTimestamps(array_merge($timestamps, [
+                'products' => $now,
+            ]));
+        }
     }
 
     /**
@@ -365,7 +367,7 @@ class GivSyncronizer
             ->first();
 
         $inventory = $this->syncProductStock($stock, $prodParentId);
-        if (!$dontSyncImages) {
+        if ($dontSyncImages) {
             $images = [];
             if (!is_null($existingProd)) {
                 $images = $existingProd->data['types']['images']['slides'];
@@ -476,7 +478,7 @@ class GivSyncronizer
         $prodImages = $this->client->getProductImages($prodParentId, $lastDate);
         foreach ($prodImages as $prodImage) {
             $existingImage = $existingImages->first(function ($img) use ($prodImage) {
-                return isset($img['index']) && $img['index'] === $prodImage->ImageIndex;
+                return isset($img['index']) && intval($img['index']) === $prodImage->ImageIndex;
             });
 
             if ($prodImage->IsActive) {

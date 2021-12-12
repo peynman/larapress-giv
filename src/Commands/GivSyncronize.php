@@ -14,7 +14,7 @@ class GivSyncronize extends Command
      *
      * @var string
      */
-    protected $signature = 'lp:giv:sync {subject : one of categories,products,stock,colors,timestamp,item} {--id=} {--code=} {--cat=}';
+    protected $signature = 'lp:giv:sync {subject : one of categories,products,stock,item,img,colors,timestamp} {--id=} {--code=} {--cat=}';
 
     /**
      * The console command description.
@@ -51,14 +51,26 @@ class GivSyncronize extends Command
             case 'item':
                 $id = $this->option('id');
                 if (!is_null($id)) {
-                    $this->info('syncing product with id '.$id);
-                    $syncer->syncProductById($id);
+                    $this->info('syncing product with id ' . $id);
+                    $syncer->syncProductById($id, true);
                 } else if ($this->option('code') && $this->option('cat')) {
                     $id = $this->option('code');
-                    $this->info('syncing product with code '.$id);
-                    $syncer->syncProductByCode($id, $this->option('cat'));
+                    $this->info('syncing product with code ' . $id);
+                    $syncer->syncProductByCode($id, $this->option('cat'), true);
                 }
                 $this->info('Item sync success');
+                break;
+            case 'img':
+                $id = $this->option('id');
+                if (!is_null($id)) {
+                    $this->info('syncing product with id ' . $id);
+                    $syncer->syncProductById($id, true);
+                } else if ($this->option('code') && $this->option('cat')) {
+                    $id = $this->option('code');
+                    $this->info('syncing product with code ' . $id);
+                    $syncer->syncProductByCode($id, $this->option('cat'), true);
+                }
+                $this->info('Item Image sync success');
                 break;
             case 'stock':
                 $syncer->syncProducts(true);
@@ -77,7 +89,7 @@ class GivSyncronize extends Command
                 $this->info('Timestamp reset success');
                 break;
             default:
-                $this->warn('Subject '.$this->argument('subject').' is not valid.');
+                $this->warn('Subject ' . $this->argument('subject') . ' is not valid.');
         }
     }
 }

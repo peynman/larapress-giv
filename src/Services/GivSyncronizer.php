@@ -202,7 +202,7 @@ class GivSyncronizer
      * @param string $cat
      * @return void
      */
-    public function syncProductByCode($itemCode, $cat)
+    public function syncProductByCode($itemCode, $cat, $dontSyncImages = false)
     {
         /** @var ProductCategory */
         $cat = ProductCategory::find($cat);
@@ -214,7 +214,7 @@ class GivSyncronizer
             $code = Str::substr($cat->name, Str::length('giv-'));
             $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
             $this->client->traverseProducts(
-                function (PaginatedResponse $response) use ($catIds, $itemCode) {
+                function (PaginatedResponse $response) use ($catIds, $itemCode, $dontSyncImages) {
                     foreach ($response->Value as $prod) {
                         if ($prod->ItemCode == $itemCode) {
                             $this->syncProduct(
@@ -224,7 +224,7 @@ class GivSyncronizer
                                 $prod->IsActive,
                                 $prod->ItemParentID,
                                 null,
-                                true
+                                $dontSyncImages
                             );
                             return 'stop';
                         }
@@ -244,7 +244,7 @@ class GivSyncronizer
      * @param Product|number|string $id
      * @return void
      */
-    public function syncProductById($product)
+    public function syncProductById($product, $dontSyncImages = false)
     {
         if (!is_object($product)) {
             $product = Product::find($product);
@@ -268,7 +268,7 @@ class GivSyncronizer
             $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
             $givCode = Str::substr($product->name, Str::length('giv-'));
             $this->client->traverseProducts(
-                function (PaginatedResponse $response) use ($catIds, $givCode) {
+                function (PaginatedResponse $response) use ($catIds, $givCode, $dontSyncImages) {
                     foreach ($response->Value as $prod) {
                         if ($prod->ItemCode == $givCode) {
                             $this->syncProduct(
@@ -278,7 +278,7 @@ class GivSyncronizer
                                 $prod->IsActive,
                                 $prod->ItemParentID,
                                 null,
-                                true
+                                $dontSyncImages
                             );
                         }
                     }

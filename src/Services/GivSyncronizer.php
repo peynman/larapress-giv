@@ -21,6 +21,8 @@ use Larapress\Profiles\IProfileUser;
 use Larapress\Profiles\Models\Filter;
 use Larapress\Giv\Services\GivApi\Category;
 use Larapress\Giv\Services\GivApi\ProductStock;
+use Larapress\Notifications\Models\SMSMessage;
+use Larapress\Notifications\Services\SMSService\Jobs\SendSMS;
 
 class GivSyncronizer
 {
@@ -566,5 +568,39 @@ class GivSyncronizer
         $this->syncUser($cart->customer);
         $cart->customer->load('giv_user_form');
         $this->client->updateOrder($cart);
+        $this->sendCartSyncedSMSMessage($cart);
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param Cart $cart
+     * @return void
+     */
+    public function sendCartSyncedSMSMessage (Cart $cart) {
+        if (is_null(config('larapress.giv.sms_gate_cart_sync'))) {
+            return;
+        }
+
+        $firstname = $cart->customer->form_profile_default?->data['values']['firstname'] ?? null;
+        $lastname = $cart->customer->form_profile_default?->data['values']['lastname'] ?? null;
+
+        $message = trans('larapress::giv.sms.cart_synced', [
+            'fullname' => $firstname.' '.$lastname,
+        ]);
+        $smsMessage = SMSMessage::create([
+            'author_id' => config('larapress.giv.author_id'),
+            'sms_gateway_id' => config('larapress.giv.sms_gate_cart_sync'),
+            'from' => trans('larapress::giv.sms.from'),
+            'to' => $cart->customer->phones[0]->number,
+            'message' => $message,
+            'flags' => 0,
+            'status' => SMSMessage::STATUS_CREATED,
+            'data' => [
+                'desc' => 'giv-syncronizer',
+                'cart_id' => $cart->id,
+            ]
+        ]);
+        SendSMS::dispatch($smsMessage);
     }
 }

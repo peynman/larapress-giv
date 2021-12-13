@@ -269,7 +269,7 @@ class Client
      * Undocumented function
      *
      * @param ICart $cart
-     * @return void
+     * @return ICart
      */
     public function updateOrder(Cart $cart)
     {
@@ -370,6 +370,8 @@ class Client
         $cart->update([
             'data' => $data,
         ]);
+
+        return $cart;
     }
 
     /**

@@ -207,6 +207,14 @@ class Client
      */
     public function updateCustomer(IECommerceUser $user)
     {
+        $gender = $user->form_profile_default?->data['values']['gender'] ?? null;
+        if (!is_null($gender)) {
+            if ($gender == 0) {
+                $gender = 'M';
+            } else {
+                $gender = 'F';
+            }
+        }
         $response = new PaginatedResponse($this->callMethod(
             '/api/customer',
             'POST',
@@ -220,7 +228,7 @@ class Client
                 'ProvinceId' => $user->addresses[0]?->province_code ?? null,
                 'City' => $user->addresses[0]?->city_code ?? null,
                 'PostalCode' => $user->addresses[0]?->postal_code ?? null,
-                'SexCode' => $user->form_profile_default?->data['values']['gender'] ?? null,
+                'SexCode' => $gender,
                 'Description' => 'Website User',
                 'IsActive' => true,
                 'DateCreated' => $user->created_at->format(config('larapress.giv.datetime_format')),

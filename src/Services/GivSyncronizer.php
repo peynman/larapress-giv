@@ -322,7 +322,7 @@ class GivSyncronizer
                                 $prod->ItemCode,
                                 $catIds,
                                 PersianText::standard($prod->ItemName),
-                                $prod->IsActive,
+                                $prod->IsActive && $prod->VirtualSaleActive,
                                 $prod->ItemParentID,
                                 $dontSyncImages ? null : $timestamps['products'] ?? null,
                                 $dontSyncImages

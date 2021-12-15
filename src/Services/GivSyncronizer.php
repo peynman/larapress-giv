@@ -378,6 +378,13 @@ class GivSyncronizer
             $images = $this->syncProductImages($itemCode, $existingProd, $prodParentId, $lastDate);
         }
 
+        $existingTypes = [];
+        $existingTypesData = [];
+        if (!is_null($existingProd)) {
+            $existingTypes = $existingProd->types->pluck('id');
+            $existingTypesData = $existingProd->data['types'];
+        }
+
         $attrs = [
             'deleted_at' => $isActive ? null : Carbon::now(),
             'data' => [
@@ -388,14 +395,14 @@ class GivSyncronizer
                 ],
                 'quantized' => true,
                 'maxQuantity' => -1,
-                'types' => [
+                'types' => array_merge($existingTypesData, [
                     'cellar' => [
                         'inventory' => $inventory,
                     ],
                     'images' => [
                         'slides' => $images,
                     ],
-                ],
+                ]),
             ]
         ];
 
@@ -409,8 +416,10 @@ class GivSyncronizer
             ]));
         }
 
-        $existingProd->types()->sync([1, 2, 3]);
-        $existingProd->categories()->sync($catIds);
+        $existingProd->types()->sync(array_unique(array_merge([1, 2, 3], $existingTypes), SORT_REGULAR));
+
+        $existingCats = $existingProd->categories->pluck('id') ?? [];
+        $existingProd->categories()->sync(array_unique(array_merge($catIds, $existingCats), SORT_REGULAR));
     }
 
     /**

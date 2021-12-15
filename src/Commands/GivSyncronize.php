@@ -54,8 +54,8 @@ class GivSyncronize extends Command
                 if (!is_null($id)) {
                     if (Str::contains($id, ',')) {
                         $ids = explode(',', $id);
-                        foreach ($ids as $$id) {
-                            $syncer->syncProductById($id, true);
+                        foreach ($ids as $itemId) {
+                            $syncer->syncProductById($itemId, true);
                         }
                     } else {
                         $syncer->syncProductById($id, true);
@@ -72,8 +72,9 @@ class GivSyncronize extends Command
                 if (!is_null($id)) {
                     if (Str::contains($id, ',')) {
                         $ids = explode(',', $id);
-                        foreach ($ids as $$id) {
-                            $syncer->syncProductById($id, false);
+                        $this->info('syncing product with ids in ('.implode(',', $ids).')');
+                        foreach ($ids as $itemId) {
+                            $syncer->syncProductById($itemId, false);
                         }
                     } else {
                         $syncer->syncProductById($id, false);

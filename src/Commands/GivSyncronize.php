@@ -64,11 +64,11 @@ class GivSyncronize extends Command
                 $id = $this->option('id');
                 if (!is_null($id)) {
                     $this->info('syncing product with id ' . $id);
-                    $syncer->syncProductById($id, true);
+                    $syncer->syncProductById($id, false);
                 } else if ($this->option('code') && $this->option('cat')) {
                     $id = $this->option('code');
                     $this->info('syncing product with code ' . $id);
-                    $syncer->syncProductByCode($id, $this->option('cat'), true);
+                    $syncer->syncProductByCode($id, $this->option('cat'), false);
                 }
                 $this->info('Item Image sync success');
                 break;
@@ -77,7 +77,7 @@ class GivSyncronize extends Command
                 $this->info('Product Stock sync success');
                 break;
             case 'products':
-                $syncer->syncProducts();
+                $syncer->syncProducts(false);
                 $this->info('Products sync success');
                 break;
             case 'color':

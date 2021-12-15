@@ -381,7 +381,7 @@ class GivSyncronizer
         $existingTypes = [];
         $existingTypesData = [];
         if (!is_null($existingProd)) {
-            $existingTypes = $existingProd->types->pluck('id');
+            $existingTypes = $existingProd->types->pluck('id')->toArray();
             $existingTypesData = $existingProd->data['types'];
         }
 
@@ -418,7 +418,7 @@ class GivSyncronizer
 
         $existingProd->types()->sync(array_unique(array_merge([1, 2, 3], $existingTypes), SORT_REGULAR));
 
-        $existingCats = $existingProd->categories->pluck('id') ?? [];
+        $existingCats = $existingProd->categories->pluck('id')->toArray() ?? [];
         $existingProd->categories()->sync(array_unique(array_merge($catIds, $existingCats), SORT_REGULAR));
     }
 

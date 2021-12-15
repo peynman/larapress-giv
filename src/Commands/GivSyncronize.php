@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Console\Command;
 use Larapress\ECommerce\Models\Cart;
 use Larapress\Giv\Services\GivSyncronizer;
+use Illuminate\Support\Str;
 
 class GivSyncronize extends Command
 {
@@ -51,8 +52,14 @@ class GivSyncronize extends Command
             case 'item':
                 $id = $this->option('id');
                 if (!is_null($id)) {
-                    $this->info('syncing product with id ' . $id);
-                    $syncer->syncProductById($id, true);
+                    if (Str::contains($id, ',')) {
+                        $ids = explode(',', $id);
+                        foreach ($ids as $$id) {
+                            $syncer->syncProductById($id, true);
+                        }
+                    } else {
+                        $syncer->syncProductById($id, true);
+                    }
                 } else if ($this->option('code') && $this->option('cat')) {
                     $id = $this->option('code');
                     $this->info('syncing product with code ' . $id);
@@ -63,8 +70,14 @@ class GivSyncronize extends Command
             case 'img':
                 $id = $this->option('id');
                 if (!is_null($id)) {
-                    $this->info('syncing product with id ' . $id);
-                    $syncer->syncProductById($id, false);
+                    if (Str::contains($id, ',')) {
+                        $ids = explode(',', $id);
+                        foreach ($ids as $$id) {
+                            $syncer->syncProductById($id, false);
+                        }
+                    } else {
+                        $syncer->syncProductById($id, false);
+                    }
                 } else if ($this->option('code') && $this->option('cat')) {
                     $id = $this->option('code');
                     $this->info('syncing product with code ' . $id);

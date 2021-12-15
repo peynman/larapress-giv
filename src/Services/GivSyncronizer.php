@@ -380,9 +380,15 @@ class GivSyncronizer
 
         $existingTypes = [];
         $existingTypesData = [];
+        $existingCats = [];
         if (!is_null($existingProd)) {
             $existingTypes = $existingProd->types->pluck('id')->toArray();
             $existingTypesData = $existingProd->data['types'];
+            $existingCats = $existingProd->categories->pluck('id')->toArray() ?? [];
+            if (!is_null($existingTypesData)) {
+                unset($existingTypesData['cellar']);
+                unset($existingTypesData['images']);
+            }
         }
 
         $attrs = [
@@ -417,8 +423,6 @@ class GivSyncronizer
         }
 
         $existingProd->types()->sync(array_unique(array_merge([1, 2, 3], $existingTypes), SORT_REGULAR));
-
-        $existingCats = $existingProd->categories->pluck('id')->toArray() ?? [];
         $existingProd->categories()->sync(array_unique(array_merge($catIds, $existingCats), SORT_REGULAR));
     }
 
@@ -586,7 +590,8 @@ class GivSyncronizer
      * @param Cart $cart
      * @return void
      */
-    public function sendCartSyncedSMSMessage (Cart $cart) {
+    public function sendCartSyncedSMSMessage(Cart $cart)
+    {
         if (is_null(config('larapress.giv.sms_gate_cart_sync'))) {
             return;
         }
@@ -595,7 +600,7 @@ class GivSyncronizer
         $lastname = $cart->customer->form_profile_default?->data['values']['lastname'] ?? null;
 
         $message = trans('larapress::giv.sms.cart_synced', [
-            'fullname' => $firstname.' '.$lastname,
+            'fullname' => $firstname . ' ' . $lastname,
         ]);
         $smsMessage = SMSMessage::create([
             'author_id' => config('larapress.giv.author_id'),

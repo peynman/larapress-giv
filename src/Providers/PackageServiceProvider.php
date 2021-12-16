@@ -27,6 +27,7 @@ class PackageServiceProvider extends ServiceProvider
     public function boot(BroadcastManager $broadcastManager)
     {
         $this->loadTranslationsFrom(__DIR__.'/../../resources/lang', 'larapress');
+        $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
 
         $this->publishes([
             __DIR__.'/../../config/giv.php' => config_path('larapress/giv.php'),

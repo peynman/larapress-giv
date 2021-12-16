@@ -332,7 +332,7 @@ class Client
                 'ReceiverProvinceID' => $address->province_code,
                 'ReceiverMobile' => $customer->phones[0]?->number ?? null,
                 'ReceiverCity' => ($province?->data['title'] ?? 'unknown') . ' ' . ($city?->data['title'] ?? 'unknown'),
-                'ReceiverAddress' => $address->address,
+                'ReceiverAddress' => Helpers::safeLatinNumbers($address->address),
                 'PaymentBankRefCode' => $transaction->reference_code,
                 'PaymentBank' => $transaction->bank_gateway->name,
                 'Date' => $farsiDate,

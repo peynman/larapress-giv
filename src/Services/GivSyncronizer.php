@@ -262,34 +262,51 @@ class GivSyncronizer
             }
         }
 
+        $givCode = Str::substr($product->name, Str::length('giv-'));
+        $repo = app(IProductRepository::class);
+        $syncProductCallback = function (PaginatedResponse $response) use ($inner, $repo, $givCode, $dontSyncImages) {
+            foreach ($response->Value as $prod) {
+                if ($prod->ItemCode == $givCode) {
+                    $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
+                    $this->syncProduct(
+                        $prod->ItemCode,
+                        $catIds,
+                        PersianText::standard($prod->ItemName),
+                        $prod->IsActive,
+                        $prod->ItemParentID,
+                        null,
+                        $dontSyncImages
+                    );
+                }
+            }
+        };
+
         if (!is_null($inner)) {
             /** @var IProductRepository */
-            $repo = app(IProductRepository::class);
-
             $code = Str::substr($inner->name, Str::length('giv-'));
-            $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
-            $givCode = Str::substr($product->name, Str::length('giv-'));
             $this->client->traverseProducts(
-                function (PaginatedResponse $response) use ($catIds, $givCode, $dontSyncImages) {
-                    foreach ($response->Value as $prod) {
-                        if ($prod->ItemCode == $givCode) {
-                            $this->syncProduct(
-                                $prod->ItemCode,
-                                $catIds,
-                                PersianText::standard($prod->ItemName),
-                                $prod->IsActive,
-                                $prod->ItemParentID,
-                                null,
-                                $dontSyncImages
-                            );
-                        }
-                    }
-                },
+                $syncProductCallback,
                 $code,
                 null,
                 50,
                 null
             );
+        } else if (is_numeric($givCode)) {
+            $this->client->traverseCategories(function (PaginatedResponse $response)
+            use ($syncProductCallback, &$inner) {
+                foreach ($response->Value as $cat) {
+                    $inner = ProductCategory::where('name', 'giv-' . $cat->CategoryCode)->first();
+                    if (!is_null($inner)) {
+                        $this->client->traverseProducts(
+                            $syncProductCallback,
+                            $cat->CategoryCode,
+                            null,
+                            50,
+                            null
+                        );
+                    }
+                }
+            }, null, 100);
         }
     }
 

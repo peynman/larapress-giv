@@ -279,6 +279,7 @@ class GivSyncronizer
                             null,
                             $dontSyncImages
                         );
+                        return 'stop';
                     }
                 }
             };
@@ -302,13 +303,16 @@ class GivSyncronizer
                     $inner = ProductCategory::where('name', 'giv-' . $cat->CategoryCode)->first();
                     if (!is_null($inner)) {
                         $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
-                        $this->client->traverseProducts(
+                        $stop = $this->client->traverseProducts(
                             $syncProductCallback($catIds),
                             $cat->CategoryCode,
                             null,
                             50,
                             null
                         );
+                        if ($stop === 'stop') {
+                            return 'stop';
+                        }
                     }
                 }
             }, null, 100);

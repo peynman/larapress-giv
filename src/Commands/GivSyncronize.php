@@ -59,6 +59,7 @@ class GivSyncronize extends Command
                             $syncer->syncProductById($itemId, true);
                         }
                     } else {
+                        $this->info('syncing product with code ' . $id);
                         $syncer->syncProductById($id, true);
                     }
                     $this->info('Item sync success');

@@ -55,17 +55,19 @@ class GivSyncronize extends Command
                     if (Str::contains($id, ',')) {
                         $ids = explode(',', $id);
                         foreach ($ids as $itemId) {
+                            $this->info('syncing product with code ' . $itemId);
                             $syncer->syncProductById($itemId, true);
                         }
                     } else {
                         $syncer->syncProductById($id, true);
                     }
+                    $this->info('Item sync success');
                 } else if ($this->option('code') && $this->option('cat')) {
                     $id = $this->option('code');
                     $this->info('syncing product with code ' . $id);
                     $syncer->syncProductByCode($id, $this->option('cat'), true);
+                    $this->info('Item sync success');
                 }
-                $this->info('Item sync success');
                 break;
             case 'img':
                 $id = $this->option('id');

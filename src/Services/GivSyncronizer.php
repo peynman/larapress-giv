@@ -264,28 +264,32 @@ class GivSyncronizer
 
         $givCode = Str::substr($product->name, Str::length('giv-'));
         $repo = app(IProductRepository::class);
-        $syncProductCallback = function (PaginatedResponse $response) use ($inner, $repo, $givCode, $dontSyncImages) {
-            foreach ($response->Value as $prod) {
-                if ($prod->ItemCode == $givCode) {
-                    $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
-                    $this->syncProduct(
-                        $prod->ItemCode,
-                        $catIds,
-                        PersianText::standard($prod->ItemName),
-                        $prod->IsActive,
-                        $prod->ItemParentID,
-                        null,
-                        $dontSyncImages
-                    );
+
+        $syncProductCallback = function ($catIds) use ($givCode, $dontSyncImages) {
+            return function (PaginatedResponse $response)
+            use ($catIds, $givCode, $dontSyncImages) {
+                foreach ($response->Value as $prod) {
+                    if ($prod->ItemCode == $givCode) {
+                        $this->syncProduct(
+                            $prod->ItemCode,
+                            $catIds,
+                            PersianText::standard($prod->ItemName),
+                            $prod->IsActive,
+                            $prod->ItemParentID,
+                            null,
+                            $dontSyncImages
+                        );
+                    }
                 }
-            }
+            };
         };
 
         if (!is_null($inner)) {
             /** @var IProductRepository */
             $code = Str::substr($inner->name, Str::length('giv-'));
+            $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
             $this->client->traverseProducts(
-                $syncProductCallback,
+                $syncProductCallback($catIds),
                 $code,
                 null,
                 50,
@@ -293,12 +297,13 @@ class GivSyncronizer
             );
         } else if (is_numeric($givCode)) {
             $this->client->traverseCategories(function (PaginatedResponse $response)
-            use ($syncProductCallback, &$inner) {
+            use ($syncProductCallback, $repo) {
                 foreach ($response->Value as $cat) {
                     $inner = ProductCategory::where('name', 'giv-' . $cat->CategoryCode)->first();
                     if (!is_null($inner)) {
+                        $catIds = array_merge([$inner->id], $repo->getProductCategoryAncestorIds($inner));
                         $this->client->traverseProducts(
-                            $syncProductCallback,
+                            $syncProductCallback($catIds),
                             $cat->CategoryCode,
                             null,
                             50,

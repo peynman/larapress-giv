@@ -15,7 +15,7 @@ class GivSyncronize extends Command
      *
      * @var string
      */
-    protected $signature = 'lp:giv:sync {subject : one of categories,products,stock,item,img,colors,timestamp} {--id=} {--code=} {--cat=}';
+    protected $signature = 'lp:giv:sync {subject : one of categories,products,inventory,stock,item,img,colors,timestamp} {--id=} {--code=} {--cat=}';
 
     /**
      * The console command description.
@@ -75,7 +75,7 @@ class GivSyncronize extends Command
                 if (!is_null($id)) {
                     if (Str::contains($id, ',')) {
                         $ids = explode(',', $id);
-                        $this->info('syncing product with ids in ('.implode(',', $ids).')');
+                        $this->info('syncing product with ids in (' . implode(',', $ids) . ')');
                         foreach ($ids as $itemId) {
                             $syncer->syncProductById($itemId, false);
                         }
@@ -96,6 +96,10 @@ class GivSyncronize extends Command
             case 'products':
                 $syncer->syncProducts(false);
                 $this->info('Products sync success');
+                break;
+            case 'inventory':
+                $syncer->syncInventory();
+                $this->info('Products inventory sync success');
                 break;
             case 'color':
                 $syncer->syncColors();

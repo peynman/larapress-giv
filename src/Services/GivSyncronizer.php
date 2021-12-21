@@ -9,6 +9,7 @@ use Larapress\ECommerce\IECommerceUser;
 use Larapress\ECommerce\Models\ProductCategory;
 use Larapress\Giv\Services\GivApi\Client;
 use Larapress\Giv\Services\GivApi\PaginatedResponse;
+use Larapress\Giv\Services\GivApi\ProductQOH;
 use Larapress\Profiles\Models\FormEntry;
 use Illuminate\Support\Str;
 use Larapress\CRUD\Services\Persian\PersianText;
@@ -168,6 +169,37 @@ class GivSyncronizer
      *
      * @return void
      */
+    public function syncInventory () {
+        $timestamps = $this->getSyncTimestamps();
+        $this->client->traverseInventroyItems(function (PaginatedResponse $response) {
+            /** @var ProductQOH $qoh */
+            foreach ($response->Value as $qoh) {
+                $prodParentId = substr($qoh->ItemID, 0, 5);
+                $prod = Product::withTrashed()->where('data->givItemParentID', $prodParentId)->first();
+                if (!is_null($prod)) {
+                    $itemCode = substr($prod->name, strlen('giv-'));
+                    [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
+
+                    $data = $prod->data;
+                    $data['types']['cellar']['inventory'] = $inventory;
+                    $prod->update([
+                        'data' => $data,
+                    ]);
+                }
+            }
+        }, 50, $timestamps['inventory'] ?? null);
+
+        $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
+        $this->setSyncTimestamps(array_merge($timestamps, [
+            'inventory' => $now,
+        ]));
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @return void
+     */
     public function syncColors()
     {
         $timestamps = $this->getSyncTimestamps();
@@ -223,7 +255,7 @@ class GivSyncronizer
                                 $prod->ItemCode,
                                 $catIds,
                                 PersianText::standard($prod->ItemName),
-                                $prod->IsActive,
+                                $this->isProductActive($prod),
                                 $prod->ItemParentID,
                                 null,
                                 $dontSyncImages
@@ -274,7 +306,7 @@ class GivSyncronizer
                             $prod->ItemCode,
                             $catIds,
                             PersianText::standard($prod->ItemName),
-                            $prod->IsActive,
+                            $this->isProductActive($prod),
                             $prod->ItemParentID,
                             null,
                             $dontSyncImages
@@ -348,7 +380,7 @@ class GivSyncronizer
                                 $prod->ItemCode,
                                 $catIds,
                                 PersianText::standard($prod->ItemName),
-                                $prod->IsActive && $prod->VirtualSaleActive,
+                                $this->isProductActive($prod),
                                 $prod->ItemParentID,
                                 $dontSyncImages ? null : $timestamps['products'] ?? null,
                                 $dontSyncImages
@@ -376,7 +408,7 @@ class GivSyncronizer
      * Undocumented function
      *
      * @param integer $itemCode
-     * @param integer $catIds
+     * @param array $catIds
      * @return void
      */
     public function syncProduct(
@@ -388,13 +420,12 @@ class GivSyncronizer
         $lastDate = null,
         $dontSyncImages = false
     ) {
-        $stock = $this->client->getProductsStock($itemCode);
         $existingProd = Product::withTrashed()
             ->where('author_id', config('larapress.giv.author_id'))
             ->where('name', 'giv-' . $itemCode)
             ->first();
 
-        $inventory = $this->syncProductStock($stock, $prodParentId);
+        [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
         if ($dontSyncImages) {
             $images = [];
             if (!is_null($existingProd)) {
@@ -420,6 +451,7 @@ class GivSyncronizer
         $attrs = [
             'deleted_at' => $isActive ? null : Carbon::now(),
             'data' => [
+                'givItemParentID' => $prodParentId,
                 'title' => $title,
                 'fixedPrice' => [
                     'amount' => floatval($stock->SellPrice) / 10,
@@ -448,8 +480,12 @@ class GivSyncronizer
             ]));
         }
 
-        $existingProd->types()->sync(array_unique(array_merge([1, 2, 3], $existingTypes), SORT_REGULAR));
-        $existingProd->categories()->sync(array_unique(array_merge($catIds, $existingCats), SORT_REGULAR));
+        $existingProd->types()->sync(
+            array_unique(array_merge([1, 2, 3], $existingTypes), SORT_REGULAR)
+        );
+        $existingProd->categories()->sync(
+            array_unique(array_merge($catIds, $existingCats), SORT_REGULAR)
+        );
     }
 
     /**
@@ -459,11 +495,12 @@ class GivSyncronizer
      * @param int|null $prodParentId
      * @return array
      */
-    protected function syncProductStock(ProductStock $stock, $prodParentId)
+    protected function syncProductStock($itemCode, $prodParentId)
     {
         $inventory = [];
         $colorIds = [];
 
+        $stock = $this->client->getProductsStock($itemCode);
         if ($stock?->Table?->TableData) {
             foreach ($stock->Table->TableData as $data) {
                 foreach ($data->Items as $dataItem) {
@@ -496,7 +533,7 @@ class GivSyncronizer
             }
         }
 
-        return $inventory;
+        return [$inventory, $stock];
     }
 
     /**
@@ -642,5 +679,15 @@ class GivSyncronizer
             ]
         ]);
         SendSMS::dispatch($smsMessage);
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param [type] $prod
+     * @return boolean
+     */
+    protected function isProductActive($prod) {
+        return $prod->IsActive && $prod->VirtualSaleActive;
     }
 }

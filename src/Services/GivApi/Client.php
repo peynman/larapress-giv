@@ -408,6 +408,28 @@ class Client
      * Undocumented function
      *
      * @param callable $callback
+     * @param integer $limit
+     *
+     * @return void
+     */
+    public function traverseInventroyItems(callable $callback, $limit = 10, string|null $lastDate = null)
+    {
+        $this->traverseRecords(
+            $callback,
+            '/api/quantityonhand',
+            array_merge([
+                'count' => $limit,
+            ], !is_null($lastDate) ? ['lastdate' => $lastDate] : []),
+            [
+                'Value' => 'array:' . \Larapress\Giv\Services\GivApi\ProductQOH::class,
+            ]
+        );
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param callable $callback
      * @param string $url
      * @param string $method
      * @param array $params
@@ -425,11 +447,14 @@ class Client
         $items = $paginated->Value;
         $total += $paginated->ResultSize;
 
-        $callback($paginated);
+        $result = $callback($paginated);
+        if ($result === 'stop') {
+            return $items;
+        }
 
         while ($total < $paginated->TotalCount && $paginated->ResultSize === $limit) {
             $paginated = $this->callPaginatedMethod($url, $method, array_merge($params, [
-                'lastdate' => $paginated->Value[$paginated->ResultSize - 1]->LastDate,
+                'lastdate' => $paginated->Value[$paginated->ResultSize - 1]->LastDate->format(config('larapress.giv.datetime_format')),
             ]), $casts);
 
             if ($paginated->ResultSize > 0) {
@@ -465,7 +490,7 @@ class Client
         while ($total < $paginated->TotalCount && $paginated->ResultSize > 0) {
             $paginated = $this->callPaginatedMethod($url, $method, [
                 ...$params,
-                'lastdate' => $paginated->Value[$paginated->ResultSize - 1]->LastDate,
+                'lastdate' => $paginated->Value[$paginated->ResultSize - 1]->LastDate->format(config('larapress.giv.datetime_format')),
             ], $casts);
 
             $items = array_merge($items, $paginated->Value);
@@ -527,7 +552,10 @@ class Client
         curl_close($ch);
 
         try {
+            var_dump($params);
             var_dump($result);
+            var_dump('****************************************************************');
+
             return json_decode($result, true);
         } catch (Exception $e) {
             throw $e;

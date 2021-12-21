@@ -7,6 +7,7 @@ return [
     'giv_user_form_id' => 2,
     'author_id' => 1,
     'datetime_format' => 'Y-m-d\TH:i:sO',
+    'datetime_timezone' => 'Asia/Tehran',
     'product_default_image_width' => 256,
     'product_default_image_height' => 256,
     'sms_gate_cart_sync' => 2,

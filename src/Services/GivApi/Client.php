@@ -395,6 +395,7 @@ class Client
         $this->traverseRecords(
             $callback,
             '/api/customer',
+            'GET',
             array_merge([
                 'count' => $limit,
             ], !is_null($lastDate) ? ['lastdate' => $lastDate] : []),
@@ -417,6 +418,7 @@ class Client
         $this->traverseRecords(
             $callback,
             '/api/quantityonhand',
+            'GET',
             array_merge([
                 'count' => $limit,
             ], !is_null($lastDate) ? ['lastdate' => $lastDate] : []),

@@ -158,7 +158,7 @@ class GivSyncronizer
             }
         }
 
-        $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
+        $now = Carbon::now(config('larapress.giv.datetime_timezone'))->format(config('larapress.giv.datetime_format'));
         $this->setSyncTimestamps(array_merge($timestamps, [
             'categories' => $now,
         ]));
@@ -189,7 +189,7 @@ class GivSyncronizer
             }
         }, 50, $timestamps['inventory'] ?? null);
 
-        $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
+        $now = Carbon::now(config('larapress.giv.datetime_timezone'))->format(config('larapress.giv.datetime_format'));
         $this->setSyncTimestamps(array_merge($timestamps, [
             'inventory' => $now,
         ]));
@@ -223,7 +223,7 @@ class GivSyncronizer
             null,
         );
 
-        $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
+        $now = Carbon::now(config('larapress.giv.datetime_timezone'))->format(config('larapress.giv.datetime_format'));
         $this->setSyncTimestamps(array_merge($timestamps, [
             'colors' => $now,
         ]));
@@ -397,7 +397,7 @@ class GivSyncronizer
 
 
         if (!$dontSyncImages) {
-            $now = Carbon::now()->format(config('larapress.giv.datetime_format'));
+            $now = Carbon::now(config('larapress.giv.datetime_timezone'))->format(config('larapress.giv.datetime_format'));
             $this->setSyncTimestamps(array_merge($timestamps, [
                 'products' => $now,
             ]));

@@ -15,7 +15,7 @@ class GivSyncronize extends Command
      *
      * @var string
      */
-    protected $signature = 'lp:giv:sync {subject : one of categories,products,inventory,stock,item,img,colors,timestamp} {--id=} {--code=} {--cat=}';
+    protected $signature = 'lp:giv:sync {subject : one of categories,products,inventory,stock,item,img,colors,cart,timestamp} {--id=} {--code=} {--cat=}';
 
     /**
      * The console command description.
@@ -88,6 +88,16 @@ class GivSyncronize extends Command
                     $syncer->syncProductByCode($id, $this->option('cat'), false);
                 }
                 $this->info('Item Image sync success');
+                break;
+            case 'cart':
+                $id = $this->option('id');
+                if (!is_null($id)) {
+                    $cart = Cart::find($id);
+                    if (!is_null($cart)) {
+                        $syncer->syncCart($cart);
+                        $this->info('Order sync success');
+                    }
+                }
                 break;
             case 'stock':
                 $syncer->syncProducts(true);

@@ -296,8 +296,8 @@ class Client
             throw new Exception("Delivery address is not set for cart $cart->id");
         }
 
-        $province = Filter::query()->where('type', 'province')->where('name', 'province-0-' . $address->province_code)->first();
-        $city = Filter::query()->where('type', 'city')->where('name', 'city-0-' . $address->province_code . '-' . $address->city_code)->first();
+        [$province, $city] = Iran::getProvinceAndCityTitleByCode($address->province_code, $address->city_code);
+        $ReceiverCity = $province . ' - '. $city;
         $orderId = isset($cart->data['givOrderId']) ? $cart->data['givOrderId'] : -1;
 
         /** @var BankGatewayTransaction */
@@ -331,7 +331,7 @@ class Client
                 'ReceiverPostalCode' => $address->postal_code,
                 'ReceiverProvinceID' => $address->province_code,
                 'ReceiverMobile' => $customer->phones[0]?->number ?? null,
-                'ReceiverCity' => ($province?->data['title'] ?? 'unknown') . ' ' . ($city?->data['title'] ?? 'unknown'),
+                'ReceiverCity' => $ReceiverCity,
                 'ReceiverAddress' => Helpers::safeLatinNumbers($address->address),
                 'PaymentBankRefCode' => $transaction->reference_code,
                 'PaymentBank' => $transaction->bank_gateway->name,

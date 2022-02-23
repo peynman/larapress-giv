@@ -17,6 +17,8 @@ class Client
 {
     public function __construct()
     {
+        ini_set('memory_limit', '-1');
+        set_time_limit(0);
     }
 
     /**
@@ -89,6 +91,35 @@ class Client
             $params,
             [
                 'Value' => 'array:' . \Larapress\Giv\Services\GivApi\Product::class,
+            ]
+        );
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param callable $callback
+     * @param integer $limit
+     *
+     * @return void
+     */
+    public function traverseInventroyItems(callable $callback, $limit = 10, string|null $lastDate = null)
+    {
+        $params = [
+            'count' => $limit,
+        ];
+
+        if (!is_null($lastDate)) {
+            $params['lastdate'] = $lastDate;
+        }
+
+        $this->traverseRecords(
+            $callback,
+            '/api/quantityonhand',
+            'GET',
+            $params,
+            [
+                'Value' => 'array:' . \Larapress\Giv\Services\GivApi\ProductQOH::class,
             ]
         );
     }
@@ -401,29 +432,6 @@ class Client
             ], !is_null($lastDate) ? ['lastdate' => $lastDate] : []),
             [
                 'Value' => 'array:' . \Larapress\Giv\Services\GivApi\Customer::class,
-            ]
-        );
-    }
-
-    /**
-     * Undocumented function
-     *
-     * @param callable $callback
-     * @param integer $limit
-     *
-     * @return void
-     */
-    public function traverseInventroyItems(callable $callback, $limit = 10, string|null $lastDate = null)
-    {
-        $this->traverseRecords(
-            $callback,
-            '/api/quantityonhand',
-            'GET',
-            array_merge([
-                'count' => $limit,
-            ], !is_null($lastDate) ? ['lastdate' => $lastDate] : []),
-            [
-                'Value' => 'array:' . \Larapress\Giv\Services\GivApi\ProductQOH::class,
             ]
         );
     }

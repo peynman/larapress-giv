@@ -169,25 +169,52 @@ class GivSyncronizer
      *
      * @return void
      */
-    public function syncInventory () {
+    public function syncInventory()
+    {
         $timestamps = $this->getSyncTimestamps();
-        $this->client->traverseInventroyItems(function (PaginatedResponse $response) {
+
+        $syncedParentIds = [];
+        $this->client->traverseInventroyItems(function (PaginatedResponse $response) use(&$syncedParentIds) {
             /** @var ProductQOH $qoh */
             foreach ($response->Value as $qoh) {
-                $prodParentId = substr($qoh->ItemID, 0, 5);
-                $prod = Product::withTrashed()->where('data->givItemParentID', $prodParentId)->first();
-                if (!is_null($prod)) {
-                    $itemCode = substr($prod->name, strlen('giv-'));
-                    [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
+                $prodParentId = intval(substr($qoh->ItemID, 0, 5));
 
-                    $data = $prod->data;
-                    $data['types']['cellar']['inventory'] = $inventory;
-                    $prod->update([
-                        'data' => $data,
-                    ]);
+                if (isset($syncedParentIds[$prodParentId])) {
+                    $prod = $syncedParentIds[$prodParentId];
+                } else {
+                    $prod = Product::withTrashed()->where('data->givItemParentID', $prodParentId)->first();
+                    if (!is_null($prod)) {
+                        $syncedParentIds[$prod->id] = $prod;
+                    }
+                }
+
+                if (isset($prod) && !is_null($prod)) {
+                    if (!isset($prod->data['types']['cellar']['inventory'])) {
+                        $itemCode = substr($prod->name, strlen('giv-'));
+                        [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
+                    } else {
+                        $inventory = $prod->data['types']['cellar']['inventory'];
+                    }
+
+                    if (is_array($inventory)) {
+                        $data = $prod->data;
+                        $data['types']['cellar']['inventory'] = array_map(
+                            function($inv) use($qoh) {
+                                return array_merge($inv,
+                                $inv['itemId'] == $qoh->ItemID ?
+                                [
+                                    'stock' => $qoh->ItemQuantityOnHand,
+                                ]: []);
+                            },
+                            $data['types']['cellar']['inventory']
+                        );
+                        $prod->update([
+                            'data' => $data,
+                        ]);
+                    }
                 }
             }
-        }, 50, $timestamps['inventory'] ?? null);
+        }, 500, $timestamps['inventory'] ?? null,);
 
         $now = Carbon::now(config('larapress.giv.datetime_timezone'))->format(config('larapress.giv.datetime_format'));
         $this->setSyncTimestamps(array_merge($timestamps, [
@@ -687,7 +714,8 @@ class GivSyncronizer
      * @param [type] $prod
      * @return boolean
      */
-    protected function isProductActive($prod) {
+    protected function isProductActive($prod)
+    {
         return $prod->IsActive && $prod->VirtualSaleActive;
     }
 }

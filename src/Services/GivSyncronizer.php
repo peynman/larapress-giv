@@ -174,47 +174,53 @@ class GivSyncronizer
         $timestamps = $this->getSyncTimestamps();
 
         $syncedParentIds = [];
-        $this->client->traverseInventroyItems(function (PaginatedResponse $response) use(&$syncedParentIds) {
-            /** @var ProductQOH $qoh */
-            foreach ($response->Value as $qoh) {
-                $prodParentId = intval(substr($qoh->ItemID, 0, 5));
+        $this->client->traverseInventroyItems(
+            function (PaginatedResponse $response) use (&$syncedParentIds) {
+                /** @var ProductQOH $qoh */
+                foreach ($response->Value as $qoh) {
+                    $prodParentId = intval(substr($qoh->ItemID, 0, 5));
 
-                if (isset($syncedParentIds[$prodParentId])) {
-                    $prod = $syncedParentIds[$prodParentId];
-                } else {
-                    $prod = Product::withTrashed()->where('data->givItemParentID', $prodParentId)->first();
-                    if (!is_null($prod)) {
-                        $syncedParentIds[$prod->id] = $prod;
-                    }
-                }
-
-                if (isset($prod) && !is_null($prod)) {
-                    if (!isset($prod->data['types']['cellar']['inventory'])) {
-                        $itemCode = substr($prod->name, strlen('giv-'));
-                        [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
+                    if (isset($syncedParentIds[$prodParentId])) {
+                        $prod = $syncedParentIds[$prodParentId];
                     } else {
-                        $inventory = $prod->data['types']['cellar']['inventory'];
+                        $prod = Product::withTrashed()->where('data->givItemParentID', $prodParentId)->first();
+                        if (!is_null($prod)) {
+                            $syncedParentIds[$prod->id] = $prod;
+                        }
                     }
 
-                    if (is_array($inventory)) {
-                        $data = $prod->data;
-                        $data['types']['cellar']['inventory'] = array_map(
-                            function($inv) use($qoh) {
-                                return array_merge($inv,
-                                $inv['itemId'] == $qoh->ItemID ?
-                                [
-                                    'stock' => $qoh->ItemQuantityOnHand,
-                                ]: []);
-                            },
-                            $data['types']['cellar']['inventory']
-                        );
-                        $prod->update([
-                            'data' => $data,
-                        ]);
+                    if (isset($prod) && !is_null($prod)) {
+                        if (!isset($prod->data['types']['cellar']['inventory'])) {
+                            $itemCode = substr($prod->name, strlen('giv-'));
+                            [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
+                        } else {
+                            $inventory = $prod->data['types']['cellar']['inventory'];
+                        }
+
+                        if (is_array($inventory)) {
+                            $data = $prod->data;
+                            $data['types']['cellar']['inventory'] = array_map(
+                                function ($inv) use ($qoh) {
+                                    return array_merge(
+                                        $inv,
+                                        $inv['itemId'] == $qoh->ItemID ?
+                                            [
+                                                'stock' => $qoh->ItemQuantityOnHand,
+                                            ] : []
+                                    );
+                                },
+                                $data['types']['cellar']['inventory']
+                            );
+                            $prod->update([
+                                'data' => $data,
+                            ]);
+                        }
                     }
                 }
-            }
-        }, 500, $timestamps['inventory'] ?? null,);
+            },
+            50000,
+            $timestamps['inventory'] ?? null,
+        );
 
         $now = Carbon::now(config('larapress.giv.datetime_timezone'))->format(config('larapress.giv.datetime_format'));
         $this->setSyncTimestamps(array_merge($timestamps, [

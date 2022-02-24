@@ -86,9 +86,9 @@ class GivSyncronizer
      *
      * @return void
      */
-    public function syncCategories()
+    public function syncCategories($fromStart = false)
     {
-        $timestamps = $this->getSyncTimestamps();
+        $timestamps = $fromStart ? [] : $this->getSyncTimestamps();
 
         $internalCats = [];
         /** @var Category[] */
@@ -169,9 +169,9 @@ class GivSyncronizer
      *
      * @return void
      */
-    public function syncInventory()
+    public function syncInventory($fromStart = false)
     {
-        $timestamps = $this->getSyncTimestamps();
+        $timestamps = $fromStart ? [] : $this->getSyncTimestamps();
 
         $syncedParentIds = [];
         $this->client->traverseInventroyItems(
@@ -233,9 +233,10 @@ class GivSyncronizer
      *
      * @return void
      */
-    public function syncColors()
+    public function syncColors($fromStart = false)
     {
-        $timestamps = $this->getSyncTimestamps();
+        $timestamps = $fromStart ? [] : $this->getSyncTimestamps();
+
         $this->client->traverseColors(
             function (PaginatedResponse $response) {
                 foreach ($response->Value as $color) {
@@ -253,7 +254,7 @@ class GivSyncronizer
                 }
             },
             500,
-            null,
+            $timestamps['inventory'] ?? null,
         );
 
         $now = Carbon::now(config('larapress.giv.datetime_timezone'))->format(config('larapress.giv.datetime_format'));

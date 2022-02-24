@@ -2,7 +2,6 @@
 
 namespace Larapress\Giv\Commands;
 
-use App\Models\User;
 use Illuminate\Console\Command;
 use Larapress\ECommerce\Models\Cart;
 use Larapress\Giv\Services\GivSyncronizer;
@@ -15,7 +14,7 @@ class GivSyncronize extends Command
      *
      * @var string
      */
-    protected $signature = 'lp:giv:sync {subject : one of categories,products,inventory,stock,item,img,colors,cart,timestamp} {--id=} {--code=} {--cat=}';
+    protected $signature = 'lp:giv:sync {subject : one of categories,products,inventory,stock,item,img,colors,cart,timestamp} {--id=} {--code=} {--cat=} {--from-start}';
 
     /**
      * The console command description.
@@ -42,13 +41,10 @@ class GivSyncronize extends Command
     public function handle()
     {
         ini_set('memory_limit', '2G');
+        ini_set('max_execution_time', '0');
         $syncer = new GivSyncronizer();
 
         switch ($this->argument('subject')) {
-            case 'categories':
-                $syncer->syncCategories();
-                $this->info('Categories sync success');
-                break;
             case 'item':
                 $id = $this->option('id');
                 if (!is_null($id)) {
@@ -100,19 +96,24 @@ class GivSyncronize extends Command
                 }
                 break;
             case 'stock':
-                $syncer->syncProducts(true);
+                // sync without images
+                $syncer->syncProducts(true /* sync without images */);
                 $this->info('Product Stock sync success');
                 break;
             case 'products':
-                $syncer->syncProducts(false);
+            $syncer->syncProducts(false /* sync with images */);
                 $this->info('Products sync success');
                 break;
+            case 'categories':
+                $syncer->syncCategories($this->option('from-start'));
+                $this->info('Categories sync success');
+                break;
             case 'inventory':
-                $syncer->syncInventory();
+                $syncer->syncInventory($this->option('from-start'));
                 $this->info('Products inventory sync success');
                 break;
             case 'color':
-                $syncer->syncColors();
+                $syncer->syncColors($this->option('from-start'));
                 $this->info('Colors sync success');
                 break;
             case 'timestamp':

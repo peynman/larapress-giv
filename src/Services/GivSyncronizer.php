@@ -610,8 +610,7 @@ class GivSyncronizer
                 if (is_null($existingImage)) {
                     $images[] = $this->getImageDefFromProductImage($itemCode, $prodImage);
                 } else {
-                    if ($existingImage[''])
-                        $images[] = $existingImage;
+                    $images[] = $existingImage;
                 }
             }
         }

@@ -192,7 +192,7 @@ class GivSyncronizer
                     if (isset($prod) && !is_null($prod)) {
                         if (!isset($prod->data['types']['cellar']['inventory'])) {
                             $itemCode = substr($prod->name, strlen('giv-'));
-                            [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
+                            [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId, []);
                         } else {
                             $inventory = $prod->data['types']['cellar']['inventory'];
                         }
@@ -459,7 +459,11 @@ class GivSyncronizer
             ->where('name', 'giv-' . $itemCode)
             ->first();
 
-        [$inventory, $stock] = $this->syncProductStock($itemCode, $prodParentId);
+        [$inventory, $stock] = $this->syncProductStock(
+            $itemCode,
+            $prodParentId,
+            $existingProd->data['types']['cellar']['inventory'] ?? []
+        );
         if ($dontSyncImages) {
             $images = [];
             if (!is_null($existingProd)) {
@@ -542,7 +546,7 @@ class GivSyncronizer
                         $prodParentId = $dataItem->ItemParentID;
                     }
 
-                    $qoh = array_filter($existingInventory, function($inv) use($dataItem) {
+                    $qoh = array_filter($existingInventory, function ($inv) use ($dataItem) {
                         return $inv['itemId'] === $dataItem->ItemID;
                     });
                     if (isset($qoh[0]['stock'])) {
@@ -604,39 +608,10 @@ class GivSyncronizer
 
             if ($prodImage->IsActive) {
                 if (is_null($existingImage)) {
-                    $localPath = $this->client->downloadImageFile($prodImage->ImagePath);
-                    $fileUpload = $this->fileService->processLocalFile(
-                        $this->authorUser,
-                        $localPath,
-                        trans('larapress::giv.giv_product_image_title', [
-                            'itemCode' => $itemCode,
-                            'index' => $prodImage->ImageIndex,
-                        ]),
-                        config('larapress.fileshare.default_public_disk'),
-                        FileUpload::ACCESS_PUBLIC,
-                        'product-images',
-                        null,
-                        [
-                            'givItemCode' => $itemCode,
-                        ],
-                        true
-                    );
-                    // remove temp download
-                    unlink($localPath);
-
-                    $imgWidth = $fileUpload->data['dimentions']['width'] ?? config('larapress.giv.product_default_image_width');
-                    $imgHeight = $fileUpload->data['dimentions']['height'] ?? config('larapress.giv.product_default_image_height');
-                    $images[] = [
-                        'image' => '/storage' . $fileUpload->path,
-                        'width' => $imgWidth,
-                        'height' => $imgHeight,
-                        'ref' => $prodImage->ColorID,
-                        'aspect' => floatval($imgWidth) / floatval($imgHeight),
-                        'fileId' => $fileUpload->id,
-                        'index' => $prodImage->ImageIndex,
-                    ];
+                    $images[] = $this->getImageDefFromProductImage($itemCode, $prodImage);
                 } else {
-                    $images[] = $existingImage;
+                    if ($existingImage[''])
+                        $images[] = $existingImage;
                 }
             }
         }
@@ -733,5 +708,47 @@ class GivSyncronizer
     protected function isProductActive($prod)
     {
         return $prod->IsActive && $prod->VirtualSaleActive;
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param string $url
+     * @return array
+     */
+    protected function getImageDefFromProductImage($itemCode, $prodImage)
+    {
+        $localPath = $this->client->downloadImageFile($prodImage->ImagePath);
+        $fileUpload = $this->fileService->processLocalFile(
+            $this->authorUser,
+            $localPath,
+            trans('larapress::giv.giv_product_image_title', [
+                'itemCode' => $itemCode,
+                'index' => $prodImage->ImageIndex,
+            ]),
+            config('larapress.fileshare.default_public_disk'),
+            FileUpload::ACCESS_PUBLIC,
+            'product-images',
+            null,
+            [
+                'givItemCode' => $itemCode,
+            ],
+            true
+        );
+        // remove temp download
+        unlink($localPath);
+
+        $imgWidth = $fileUpload->data['dimentions']['width'] ?? config('larapress.giv.product_default_image_width');
+        $imgHeight = $fileUpload->data['dimentions']['height'] ?? config('larapress.giv.product_default_image_height');
+
+        return [
+            'image' => '/storage' . $fileUpload->path,
+            'width' => $imgWidth,
+            'height' => $imgHeight,
+            'ref' => $prodImage->ColorID,
+            'aspect' => floatval($imgWidth) / floatval($imgHeight),
+            'fileId' => $fileUpload->id,
+            'index' => $prodImage->ImageIndex,
+        ];
     }
 }

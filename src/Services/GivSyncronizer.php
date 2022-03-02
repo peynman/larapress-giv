@@ -546,9 +546,9 @@ class GivSyncronizer
                         $prodParentId = $dataItem->ItemParentID;
                     }
 
-                    $qoh = array_filter($existingInventory, function ($inv) use ($dataItem) {
-                        return $inv['itemId'] === $dataItem->ItemID;
-                    });
+                    $qoh = array_values(array_filter($existingInventory, function ($inv) use ($dataItem) {
+                        return intval($inv['itemId']) === intval($dataItem->ItemID);
+                    }));
                     if (isset($qoh[0]['stock'])) {
                         $qoh = $qoh[0]['stock'];
                     } else {

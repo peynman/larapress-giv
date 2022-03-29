@@ -479,7 +479,11 @@ class GivSyncronizer
         if (!is_null($existingProd)) {
             $existingTypes = $existingProd->types->pluck('id')->toArray();
             $existingTypesData = $existingProd->data['types'];
-            $existingCats = $existingProd->categories->pluck('id')->toArray() ?? [];
+            $existingCats = $existingProd->categories()
+                ->where('name', 'NOT LIKE', 'giv-%')
+                ->get()
+                ->pluck('id')
+                ->toArray() ?? [];
             if (!is_null($existingTypesData)) {
                 unset($existingTypesData['cellar']);
                 unset($existingTypesData['images']);

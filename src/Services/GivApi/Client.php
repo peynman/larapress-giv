@@ -353,7 +353,7 @@ class Client
                 'PaymentType' => 'ONLINE',
                 'CreditUsed' => 0,
                 'PackingCost' => 0,
-                // 'TransferCost' => $cart->getDeliveryPrice() * 10,
+                'TransferCost' => 0, // $cart->getDeliveryPrice() * 10,
                 'TransferCost' => 0,
                 'TotalPrice' => $cart->amount * 10,
                 'TotalQuantity' => $cart->getTotalQuantity(),
@@ -383,6 +383,7 @@ class Client
         $indexer = 1;
         foreach ($products as $product) {
             $details = new CartProductPurchaseDetails($product->pivot->data);
+            $quantity = $details->quantity ?? 1;
 
             $this->callMethod(
                 '/api/orderrow',
@@ -392,7 +393,7 @@ class Client
                     'RowID' => $indexer,
                     'ItemID' => $details->extra['itemId'],
                     'Quantity' => $details->quantity,
-                    'Fee' => $details->amount * 10,
+                    'Fee' => ($details->amount * 10 / $quantity),
                     'RowDiscount' => $details->offAmount * 10,
                     'TotalDiscount' => $details->offAmount * 10,
                     'VatValue' => 0,

@@ -393,7 +393,7 @@ class Client
                     'RowID' => $indexer,
                     'ItemID' => $details->extra['itemId'],
                     'Quantity' => $details->quantity,
-                    'Fee' => ($details->amount * 10 / $quantity),
+                    'Fee' => (($details->amount * 10) / $quantity),
                     'RowDiscount' => $details->offAmount * 10,
                     'TotalDiscount' => $details->offAmount * 10,
                     'VatValue' => 0,

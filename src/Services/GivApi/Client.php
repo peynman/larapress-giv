@@ -338,6 +338,7 @@ class Client
         $date = $periodStart->format(config('larapress.giv.datetime_format'));
         $farsiDate = implode('', $this->gregorian_to_jalali($periodStart->year, $periodStart->month, $periodStart->day));
         $discount = $cart->getGiftCodeUsage()?->amount * 10 ?? 0;
+        $totalPrice = floatVal($cart->amount * 10) - floatVal($cart->getDeliveryPrice() * 10);
 
         $response = new PaginatedResponse($this->callMethod(
             '/api/order',
@@ -353,9 +354,8 @@ class Client
                 'PaymentType' => 'ONLINE',
                 'CreditUsed' => 0,
                 'PackingCost' => 0,
-                'TransferCost' => 0, // $cart->getDeliveryPrice() * 10,
-                'TransferCost' => 0,
-                'TotalPrice' => $cart->amount * 10,
+                'TransferCost' => $cart->getDeliveryPrice() * 10,
+                'TotalPrice' => $totalPrice,
                 'TotalQuantity' => $cart->getTotalQuantity(),
                 'TotalDiscount' => $discount,
                 'ReceiverName' => implode(' ', $fullname),
@@ -408,6 +408,7 @@ class Client
         $data = $cart->data;
         $data['givOrderId'] = $order->OrderID;
         $data['synced'] = true;
+        /** @var Model $cart */
         $cart->update([
             'data' => $data,
         ]);

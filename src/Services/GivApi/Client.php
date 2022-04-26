@@ -338,7 +338,9 @@ class Client
         $date = $periodStart->format(config('larapress.giv.datetime_format'));
         $farsiDate = implode('', $this->gregorian_to_jalali($periodStart->year, $periodStart->month, $periodStart->day));
         $discount = $cart->getGiftCodeUsage()?->amount * 10 ?? 0;
-        $totalPrice = floatVal($cart->amount * 10) - floatVal($cart->getDeliveryPrice() * 10);
+        $totalPrice = $cart->amount * 10; //floatVal($cart->amount * 10) - floatVal($cart->getDeliveryPrice() * 10);
+        $deliveryAgentName = $cart->getDeliveryAgentName();
+        $deliveryAgentPrice = $cart->getDeliveryPrice() * 10;
 
         $response = new PaginatedResponse($this->callMethod(
             '/api/order',
@@ -348,13 +350,15 @@ class Client
                 'PersonID' => $persionId,
                 'No' => $cart->id,
                 'SourceID' => $cart->id,
-                'Description' => 'Website Cart: ' . $cart->getDeliveryAgentName(),
+                'Description' => 'Website Cart: ' . $deliveryAgentName,
                 'Type' => 'SALE',
                 'PaymentStatus' => 'PAYMENT_STATUS_SUCCESSFUL',
                 'PaymentType' => 'ONLINE',
                 'CreditUsed' => 0,
                 'PackingCost' => 0,
-                'TransferCost' => $cart->getDeliveryPrice() * 10,
+//                'TransferCost' => $cart->getDeliveryPrice() * 10,
+                'TransferCost' => 0,
+
                 'TotalPrice' => $totalPrice,
                 'TotalQuantity' => $cart->getTotalQuantity(),
                 'TotalDiscount' => $discount,
@@ -364,7 +368,7 @@ class Client
                 'ReceiverProvinceID' => $address->province_code,
                 'ReceiverMobile' => $customer->phones[0]?->number ?? null,
                 'ReceiverCity' => $ReceiverCity,
-                'ReceiverAddress' => Helpers::safeLatinNumbers($address->address) . ' - ' . $cart->getDeliveryAgentName(),
+                'ReceiverAddress' => Helpers::safeLatinNumbers($address->address) . ' - ' . $deliveryAgentName,
                 'PaymentBankRefCode' => $transaction->reference_code,
                 'PaymentBank' => $transaction->bank_gateway->name,
                 'Date' => $farsiDate,
@@ -403,6 +407,29 @@ class Client
             );
 
             $indexer++;
+        }
+
+        $agentDeliveryProducIds = [
+            'shahrestan_pishtaz' => '1270009',
+            'tehran_pishtaz' => '1270009',
+        ];
+        if (isset($agentDeliveryProducIds[$deliveryAgentName])) {
+            $this->callMethod(
+                '/api/orderrow',
+                'POST',
+                [
+                    'OrderID' => $order->OrderID,
+                    'RowID' => $indexer,
+                    'ItemID' => $agentDeliveryProducIds[$deliveryAgentName],
+                    'Quantity' => 1,
+                    'Fee' => $deliveryAgentPrice,
+                    'RowDiscount' => 0,
+                    'TotalDiscount' => 0,
+                    'VatValue' => 0,
+                    'DateCreated' => $date,
+                    'DateChanged' => $date,
+                ]
+            );
         }
 
         $data = $cart->data;

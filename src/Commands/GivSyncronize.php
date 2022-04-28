@@ -2,6 +2,7 @@
 
 namespace Larapress\Giv\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Larapress\ECommerce\Models\Cart;
 use Larapress\Giv\Services\GivSyncronizer;
@@ -90,6 +91,14 @@ class GivSyncronize extends Command
                 if (!is_null($id)) {
                     $cart = Cart::find($id);
                     if (!is_null($cart)) {
+                        if ($cart->status == Cart::STATUS_UNVERIFIED) {
+                            $cart->update([
+                                'status' => Cart::STATUS_ACCESS_GRANTED,
+                                'data' => array_merge($cart->data, [
+                                    'period_start' => Carbon::now(),
+                                ]),
+                            ]);
+                        }
                         $syncer->syncCart($cart);
                         $this->info('Order sync success');
                     }

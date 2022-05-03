@@ -110,26 +110,32 @@ class GivSyncronizer
 
         foreach ($categoriesList as $cat) {
             if ($cat->CategoryCode <= 99) {
-                $dbCat = ProductCategory::withTrashed()->updateOrCreate([
-                    'author_id' => config('larapress.giv.author_id'),
-                    'name' => 'giv-' . $cat->CategoryCode,
-                ], [
-                    'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-                    'parent_id' => null,
-                    'data' => [
-                        'title' => PersianText::standard($cat->CategoryName),
-                        'order' => $cat->OrderIndex,
-                        'showOnProductCard' => $cat->VirtualSaleActive,
-                        'isFilterable' => $cat->VirtualSaleActive,
-                        'showInFrontFilters' => false,
-                        'queryFrontEnd' => false,
-                        'giv' => [
-                            'code' => $cat->CategoryCode,
-                            'active' => $cat->CategoryIsActive,
-                            'virtualSale' => $cat->VirtualSaleActive,
+                $getUpdateCategoryAttrs = function ($showInFrontFilters, $queryFrontEnd) use($cat) {
+                    return [
+                        'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
+                        'parent_id' => null,
+                        'data' => [
+                            'title' => PersianText::standard($cat->CategoryName),
+                            'order' => $cat->OrderIndex,
+                            'showOnProductCard' => $cat->VirtualSaleActive,
+                            'isFilterable' => $cat->VirtualSaleActive,
+                            'showInFrontFilters' => false,
+                            'queryFrontEnd' => false,
+                            'giv' => [
+                                'code' => $cat->CategoryCode,
+                                'active' => $cat->CategoryIsActive,
+                                'virtualSale' => $cat->VirtualSaleActive,
+                            ],
                         ],
-                    ],
-                ]);
+                    ];
+                };
+
+                $dbCat = ProductCategory::withTrashed()->where('name', 'giv-' . $cat->CategoryCode)->first();
+                if (is_null($dbCat)) {
+                    ProductCategory::create($getUpdateCategoryAttrs(false, false));
+                } else {
+                    $dbCat->update($getUpdateCategoryAttrs($dbCat->data['showInFrontFilters'], $dbCat->data['queryFrontEnd']));
+                }
                 $internalCats[$cat->CategoryCode] = $dbCat->id;
             } else {
                 $parentCode = floor($cat->CategoryCode / 100);

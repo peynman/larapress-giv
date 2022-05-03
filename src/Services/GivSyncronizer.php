@@ -496,7 +496,7 @@ class GivSyncronizer
                 'givItemParentID' => $prodParentId,
                 'title' => $title,
                 'fixedPrice' => [
-                    'amount' => floatval($stock->SellPrice) / 10,
+                    'amount' => (floatval($stock?->SellPrice) ?? 0) / 10,
                     'currency' => config('larapress.ecommerce.banking.currency.id'),
                 ],
                 'quantized' => true,

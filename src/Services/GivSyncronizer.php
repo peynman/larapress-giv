@@ -108,58 +108,57 @@ class GivSyncronizer
             return $a->CategoryCode <=> $b->CategoryCode;
         });
 
+        // use this to keep other parts of category data untouched
+        $getUpdateCategoryAttrs = function ($givCat, $parentId, $data) {
+            return [
+                'deleted_at' => $givCat->CategoryIsActive ? null : Carbon::now(),
+                'parent_id' => $parentId,
+                'data' => array_merge($data, [
+                    'title' => PersianText::standard($givCat->CategoryName),
+                    'order' => $givCat->OrderIndex,
+                    'showOnProductCard' => $givCat->VirtualSaleActive,
+                    'isFilterable' => $givCat->VirtualSaleActive,
+                    'giv' => [
+                        'code' => $givCat->CategoryCode,
+                        'active' => $givCat->CategoryIsActive,
+                        'virtualSale' => $givCat->VirtualSaleActive,
+                    ],
+                ]),
+            ];
+        };
         foreach ($categoriesList as $cat) {
             if ($cat->CategoryCode <= 99) {
-                $getUpdateCategoryAttrs = function ($showInFrontFilters, $queryFrontEnd) use($cat) {
-                    return [
-                        'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-                        'parent_id' => null,
-                        'data' => [
-                            'title' => PersianText::standard($cat->CategoryName),
-                            'order' => $cat->OrderIndex,
-                            'showOnProductCard' => $cat->VirtualSaleActive,
-                            'isFilterable' => $cat->VirtualSaleActive,
-                            'showInFrontFilters' => false,
-                            'queryFrontEnd' => false,
-                            'giv' => [
-                                'code' => $cat->CategoryCode,
-                                'active' => $cat->CategoryIsActive,
-                                'virtualSale' => $cat->VirtualSaleActive,
-                            ],
-                        ],
-                    ];
-                };
-
                 $dbCat = ProductCategory::withTrashed()->where('name', 'giv-' . $cat->CategoryCode)->first();
                 if (is_null($dbCat)) {
-                    ProductCategory::create($getUpdateCategoryAttrs(false, false));
+                    ProductCategory::create($getUpdateCategoryAttrs($cat, null, [
+                        'showInFrontFilters' => false,
+                        'queryFrontEnd' => false,
+                    ]));
                 } else {
-                    $dbCat->update($getUpdateCategoryAttrs($dbCat->data['showInFrontFilters'], $dbCat->data['queryFrontEnd']));
+                    $dbCat->update($getUpdateCategoryAttrs($cat, null, $dbCat->data ?? []));
                 }
                 $internalCats[$cat->CategoryCode] = $dbCat->id;
             } else {
                 $parentCode = floor($cat->CategoryCode / 100);
                 $parent_id = $parentCode > 99 && isset($internalCats[$parentCode]) ? $internalCats[$parentCode] : null;
-                $dbCat = ProductCategory::withTrashed()->updateOrCreate([
-                    'author_id' => config('larapress.giv.author_id'),
-                    'name' => 'giv-' . $cat->CategoryCode,
-                ], [
-                    'deleted_at' => $cat->CategoryIsActive ? null : Carbon::now(),
-                    'parent_id' => $parent_id,
-                    'data' => [
-                        'title' => PersianText::standard($cat->CategoryName),
-                        'order' => $cat->OrderIndex,
-                        'showOnProductCard' => $cat->VirtualSaleActive,
-                        'isFilterable' => $cat->VirtualSaleActive,
+                $dbCat = ProductCategory::withTrashed()->where('name', 'giv-' . $cat->CategoryCode)->first();
+                if (is_null($dbCat)) {
+                    ProductCategory::create($getUpdateCategoryAttrs($cat, $parent_id, [
                         'showInFrontFilters' => $cat->VirtualSaleActive,
                         'queryFrontEnd' => $cat->VirtualSaleActive,
-                        'giv' => [
-                            'code' => $cat->CategoryCode,
-                            'active' => $cat->CategoryIsActive,
-                            'virtualSale' => $cat->VirtualSaleActive,
-                        ],
-                    ],
-                ]);
+                    ]));
+                } else {
+                    $dbCat->update(
+                        $getUpdateCategoryAttrs(
+                            $cat,
+                            $parent_id,
+                            array_merge($dbCat->data ?? [], [
+                                'showInFrontFilters' => $cat->VirtualSaleActive,
+                                'queryFrontEnd' => $cat->VirtualSaleActive,
+                            ])
+                        )
+                    );
+                }
                 $internalCats[$cat->CategoryCode] = $dbCat->id;
             }
         }

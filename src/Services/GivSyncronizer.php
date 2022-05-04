@@ -133,7 +133,7 @@ class GivSyncronizer
             if ($cat->CategoryCode <= 99) {
                 $dbCat = ProductCategory::withTrashed()->where('name', 'giv-' . $cat->CategoryCode)->first();
                 if (is_null($dbCat)) {
-                    ProductCategory::create($getUpdateCategoryAttrs($cat, null, [
+                    $dbCat = ProductCategory::create($getUpdateCategoryAttrs($cat, null, [
                         'showInFrontFilters' => false,
                         'queryFrontEnd' => false,
                     ]));
@@ -146,7 +146,7 @@ class GivSyncronizer
                 $parent_id = $parentCode > 99 && isset($internalCats[$parentCode]) ? $internalCats[$parentCode] : null;
                 $dbCat = ProductCategory::withTrashed()->where('name', 'giv-' . $cat->CategoryCode)->first();
                 if (is_null($dbCat)) {
-                    ProductCategory::create($getUpdateCategoryAttrs($cat, $parent_id, [
+                    $dbCat = ProductCategory::create($getUpdateCategoryAttrs($cat, $parent_id, [
                         'showInFrontFilters' => $cat->VirtualSaleActive,
                         'queryFrontEnd' => $cat->VirtualSaleActive,
                     ]));

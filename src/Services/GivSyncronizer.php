@@ -112,6 +112,7 @@ class GivSyncronizer
         // use this to keep other parts of category data untouched
         $getUpdateCategoryAttrs = function ($givCat, $parentId, $data) {
             return [
+                'name' => 'giv-'.$givCat->CategoryCode,
                 'author_id' => config('larapress.giv.author_id'),
                 'deleted_at' => $givCat->CategoryIsActive ? null : Carbon::now(),
                 'parent_id' => $parentId,

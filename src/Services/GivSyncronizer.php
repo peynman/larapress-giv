@@ -21,6 +21,7 @@ use Larapress\FileShare\Services\FileUpload\IFileUploadService;
 use Larapress\Profiles\IProfileUser;
 use Larapress\Profiles\Models\Filter;
 use Larapress\Giv\Services\GivApi\Category;
+use Larapress\Giv\Services\GivApi\Product as GivApiProduct;
 use Larapress\Giv\Services\GivApi\ProductStock;
 use Larapress\Notifications\Models\SMSMessage;
 use Larapress\Notifications\Services\SMSService\Jobs\SendSMS;
@@ -291,6 +292,7 @@ class GivSyncronizer
                     foreach ($response->Value as $prod) {
                         if ($prod->ItemCode == $itemCode) {
                             $this->syncProduct(
+                                $prod,
                                 $prod->ItemCode,
                                 $catIds,
                                 PersianText::standard($prod->ItemName),
@@ -342,6 +344,7 @@ class GivSyncronizer
                 foreach ($response->Value as $prod) {
                     if ($prod->ItemCode == $givCode) {
                         $this->syncProduct(
+                            $prod,
                             $prod->ItemCode,
                             $catIds,
                             PersianText::standard($prod->ItemName),
@@ -416,6 +419,7 @@ class GivSyncronizer
                     function (PaginatedResponse $response) use ($catIds, $timestamps, $dontSyncImages) {
                         foreach ($response->Value as $prod) {
                             $this->syncProduct(
+                                $prod,
                                 $prod->ItemCode,
                                 $catIds,
                                 PersianText::standard($prod->ItemName),
@@ -451,6 +455,7 @@ class GivSyncronizer
      * @return void
      */
     public function syncProduct(
+        GivApiProduct $prod,
         int $itemCode,
         array $catIds,
         string $title,
@@ -492,6 +497,26 @@ class GivSyncronizer
             if (!is_null($existingTypesData)) {
                 unset($existingTypesData['cellar']);
                 unset($existingTypesData['images']);
+            }
+        }
+
+        // has brand Spec
+        if (
+            !is_null($prod->ItemSpec1) && strlen($prod->ItemSpec1) > 0 &&
+            !is_null(config('larapress.giv.giv_brands_parent_categor'))
+        ) {
+            $brandCatName = 'brand-' . Str::lower($prod->ItemSpec1);
+            $cat = ProductCategory::withTrashed()->where('name', $brandCatName)->first();
+            if (is_null($cat)) {
+                $cat = ProductCategory::create([
+                    'author_id' => config('larapress.giv.author_id'),
+                    'name' => $brandCatName,
+                    'parent_id' => config('larapress.giv.giv_brands_parent_category'),
+                    'data' => [
+                        'title' => $prod->ItemSpec1,
+                    ],
+
+                ]);
             }
         }
 

@@ -11,4 +11,5 @@ return [
     'product_default_image_width' => 256,
     'product_default_image_height' => 256,
     'sms_gate_cart_sync' => 2,
+    'giv_brands_parent_category' => null,
 ];

@@ -338,6 +338,10 @@ class Client
         $date = $periodStart->format(config('larapress.giv.datetime_format'));
         $farsiDate = implode('', $this->gregorian_to_jalali($periodStart->year, $periodStart->month, $periodStart->day));
         $discount = $cart->getGiftCodeUsage()?->amount * 10 ?? 0;
+        $promos = $cart->getPromotions();
+        foreach ($promos as $promotion) {
+            $discount += $promotion->amount * 10;
+        }
         $totalPrice = floatVal($cart->amount * 10) - floatVal($cart->getDeliveryPrice() * 10);
         $deliveryAgentName = $cart->getDeliveryAgentName();
 
@@ -384,7 +388,6 @@ class Client
         $indexer = 1;
         foreach ($products as $product) {
             $details = new CartProductPurchaseDetails($product->pivot->data);
-            $quantity = $details->quantity ?? 1;
 
             $this->callMethod(
                 '/api/orderrow',
@@ -394,7 +397,7 @@ class Client
                     'RowID' => $indexer,
                     'ItemID' => $details->extra['itemId'],
                     'Quantity' => $details->quantity,
-                    'Fee' => (($details->amount * 10) / $quantity),
+                    'Fee' => $details->fee * 10,
                     'RowDiscount' => $details->offAmount * 10,
                     'TotalDiscount' => $details->offAmount * 10,
                     'VatValue' => 0,

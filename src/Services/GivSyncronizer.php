@@ -101,12 +101,12 @@ class GivSyncronizer
                 }
             },
             null,
-            100,
+            500,
             $timestamps['categories'] ?? null,
         );
 
         usort($categoriesList, function (Category $a, Category $b) {
-            return $a->CategoryCode <=> $b->CategoryCode;
+            return intval($a->CategoryCode) <=> intval($b->CategoryCode);
         });
 
         // use this to keep other parts of category data untouched
@@ -145,6 +145,12 @@ class GivSyncronizer
                 $parentCode = floor($cat->CategoryCode / 100);
                 $parent_id = $parentCode > 99 && isset($internalCats[$parentCode]) ? $internalCats[$parentCode] : null;
                 $dbCat = ProductCategory::withTrashed()->where('name', 'giv-' . $cat->CategoryCode)->first();
+                if (is_null($parent_id)) {
+                    $parent = ProductCategory::withTrashed()->where('name', 'giv-' . $parentCode)->first();
+                    if (!is_null($parent)) {
+                        $parent_id = $parent->id;
+                    }
+                }
                 if (is_null($dbCat)) {
                     $dbCat = ProductCategory::create($getUpdateCategoryAttrs($cat, $parent_id, [
                         'showInFrontFilters' => $cat->VirtualSaleActive,
@@ -476,6 +482,7 @@ class GivSyncronizer
             $prodParentId,
             $existingProd->data['types']['cellar']['inventory'] ?? []
         );
+
         if ($dontSyncImages) {
             $images = [];
             if (!is_null($existingProd)) {

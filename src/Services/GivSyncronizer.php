@@ -145,7 +145,7 @@ class GivSyncronizer
                 $parentCode = floor($cat->CategoryCode / 100);
                 $parent_id = $parentCode > 99 && isset($internalCats[$parentCode]) ? $internalCats[$parentCode] : null;
                 $dbCat = ProductCategory::withTrashed()->where('name', 'giv-' . $cat->CategoryCode)->first();
-                if (is_null($parent_id)) {
+                if (is_null($parent_id) && $parentCode > 99) {
                     $parent = ProductCategory::withTrashed()->where('name', 'giv-' . $parentCode)->first();
                     if (!is_null($parent)) {
                         $parent_id = $parent->id;

@@ -398,7 +398,7 @@ class Client
                     'ItemID' => $details->extra['itemId'],
                     'Quantity' => $details->quantity,
                     'Fee' => $details->fee * 10,
-                    'RowDiscount' => $details->offAmount * 10,
+                    'RowDiscount' => 0,
                     'TotalDiscount' => $details->offAmount * 10,
                     'VatValue' => 0,
                     'DateCreated' => $date,

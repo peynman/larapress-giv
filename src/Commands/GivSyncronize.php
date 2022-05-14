@@ -92,12 +92,14 @@ class GivSyncronize extends Command
                     $cart = Cart::find($id);
                     if (!is_null($cart)) {
                         if ($cart->status == Cart::STATUS_UNVERIFIED) {
-                            $cart->update([
-                                'status' => Cart::STATUS_ACCESS_GRANTED,
-                                'data' => array_merge($cart->data, [
-                                    'period_start' => Carbon::now(),
-                                ]),
-                            ]);
+                            if ($this->option('verify-cart')) {
+                                $cart->update([
+                                    'status' => Cart::STATUS_ACCESS_GRANTED,
+                                    'data' => array_merge($cart->data, [
+                                        'period_start' => Carbon::now(),
+                                    ]),
+                                ]);
+                            }
                         }
                         $syncer->syncCart($cart);
                         $this->info('Order sync success');

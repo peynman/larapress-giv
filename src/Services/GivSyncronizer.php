@@ -495,6 +495,7 @@ class GivSyncronizer
         $existingTypes = [];
         $existingTypesData = [];
         $existingCats = [];
+        $existingCellarData = [];
         if (!is_null($existingProd)) {
             $existingTypes = $existingProd->types->pluck('id')->toArray();
             $existingTypesData = $existingProd->data['types'];
@@ -504,6 +505,12 @@ class GivSyncronizer
                 ->pluck('id')
                 ->toArray() ?? [];
             if (!is_null($existingTypesData)) {
+                if (isset($existingTypesData['cellar'])) {
+                    $existingCellarData = $existingTypesData['cellar'];
+                    if (isset($existingCellarData['inventory'])) {
+                        unset($existingCellarData['inventory']);
+                    }
+                }
                 unset($existingTypesData['cellar']);
                 unset($existingTypesData['images']);
             }
@@ -541,9 +548,9 @@ class GivSyncronizer
                 'quantized' => true,
                 'maxQuantity' => -1,
                 'types' => array_merge($existingTypesData, [
-                    'cellar' => [
+                    'cellar' => array_merge($existingCellarData, [
                         'inventory' => $inventory,
-                    ],
+                    ]),
                     'images' => [
                         'slides' => $images,
                     ],

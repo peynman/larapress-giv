@@ -217,10 +217,8 @@ class GivSyncronizer
                                 function ($inv) use ($qoh) {
                                     return array_merge(
                                         $inv,
-                                        $inv['itemId'] == $qoh->ItemID ?
-                                            [
-                                                'stock' => $qoh->ItemQuantityOnHand,
-                                            ] : []
+                                        isset($inv['itemId']) && $inv['itemId'] == $qoh->ItemID ?
+                                            ['stock' => $qoh->ItemQuantityOnHand] : []
                                     );
                                 },
                                 $data['types']['cellar']['inventory']

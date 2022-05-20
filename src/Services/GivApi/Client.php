@@ -363,7 +363,7 @@ class Client
                 'TransferCost' => $transfer,
                 'TotalPrice' => $totalPrice + $discount + $transfer,
                 'TotalQuantity' => $cart->getTotalQuantity(),
-                'TotalDiscount' => 0, // calc discount in item row
+                'TotalDiscount' => $discount, // calc discount in item row
                 'ReceiverName' => implode(' ', $fullname),
                 'PostRefCode' => $address->postal_code,
                 'ReceiverPostalCode' => $address->postal_code,
@@ -399,7 +399,7 @@ class Client
                     'ItemID' => $details->extra['itemId'],
                     'Quantity' => $details->quantity,
                     'Fee' => $details->fee * 10,
-                    'RowDiscount' => $details->offAmount * 10,
+                    'RowDiscount' => 0, //$details->offAmount * 10,
                     'TotalDiscount' => 0,
                     'VatValue' => 0,
                     'DateCreated' => $date,

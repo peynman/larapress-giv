@@ -342,9 +342,9 @@ class Client
         foreach ($promos as $promotion) {
             $discount += $promotion->amount * 10;
         }
-        $totalPrice = floatVal($cart->amount * 10) - floatVal($cart->getDeliveryPrice() * 10);
-        $deliveryAgentName = $cart->getDeliveryAgentName();
         $transfer =  $cart->getDeliveryPrice() * 10;
+        $totalPrice = floatVal($cart->amount * 10) - $transfer;
+        $deliveryAgentName = $cart->getDeliveryAgentName();
 
         $response = new PaginatedResponse($this->callMethod(
             '/api/order',
@@ -361,9 +361,9 @@ class Client
                 'CreditUsed' => 0,
                 'PackingCost' => 0,
                 'TransferCost' => $transfer,
-                'TotalPrice' => $totalPrice + $discount + $transfer,
+                'TotalPrice' => $totalPrice,
                 'TotalQuantity' => $cart->getTotalQuantity(),
-                // 'TotalDiscount' => 0, // calc discount in item row
+                'TotalDiscount' => 0, // calc discount in item row
                 'ReceiverName' => implode(' ', $fullname),
                 'PostRefCode' => $address->postal_code,
                 'ReceiverPostalCode' => $address->postal_code,

@@ -101,7 +101,7 @@ class GivSyncronizer
                 }
             },
             null,
-            500,
+            1000,
             $timestamps['categories'] ?? null,
         );
 
@@ -265,7 +265,7 @@ class GivSyncronizer
                     ]);
                 }
             },
-            500,
+            1000,
             $timestamps['inventory'] ?? null,
         );
 
@@ -313,7 +313,7 @@ class GivSyncronizer
                 },
                 $code,
                 null,
-                50,
+                1000,
                 null
             );
         }
@@ -373,7 +373,7 @@ class GivSyncronizer
                 $syncProductCallback($catIds),
                 $code,
                 null,
-                50,
+                1000,
                 null
             );
         } else if (is_numeric($givCode)) {
@@ -387,7 +387,7 @@ class GivSyncronizer
                             $syncProductCallback($catIds),
                             $cat->CategoryCode,
                             null,
-                            50,
+                            1000,
                             null
                         );
                         if ($stop === 'stop') {
@@ -404,9 +404,9 @@ class GivSyncronizer
      *
      * @return void
      */
-    public function syncProducts($dontSyncImages = false)
+    public function syncProducts($dontSyncImages = false, $fromStart = false)
     {
-        $timestamps = $this->getSyncTimestamps();
+        $timestamps = $fromStart ? [] : $this->getSyncTimestamps();
 
         /** @var ProductCategory[] */
         $cats = ProductCategory::query()
@@ -422,23 +422,25 @@ class GivSyncronizer
                 $code = Str::substr($cat->name, Str::length('giv-'));
                 $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
                 $this->client->traverseProducts(
-                    function (PaginatedResponse $response) use ($catIds, $timestamps, $dontSyncImages) {
+                    function (PaginatedResponse $response) use ($code, $catIds, $timestamps, $dontSyncImages) {
                         foreach ($response->Value as $prod) {
-                            $this->syncProduct(
-                                $prod,
-                                $prod->ItemCode,
-                                $catIds,
-                                PersianText::standard($prod->ItemName),
-                                $this->isProductActive($prod),
-                                $prod->ItemParentID,
-                                $dontSyncImages ? null : $timestamps['products'] ?? null,
-                                $dontSyncImages
-                            );
+                            if ($prod->ItemCategory->CategoryCode === intval($code)) {
+                                $this->syncProduct(
+                                    $prod,
+                                    $prod->ItemCode,
+                                    $catIds,
+                                    PersianText::standard($prod->ItemName),
+                                    $this->isProductActive($prod),
+                                    $prod->ItemParentID,
+                                    $dontSyncImages ? null : $timestamps['products'] ?? null,
+                                    $dontSyncImages
+                                );
+                            }
                         }
                     },
                     $code,
                     null,
-                    50,
+                    1000,
                     $dontSyncImages ? null : $timestamps['products'] ?? null
                 );
             }

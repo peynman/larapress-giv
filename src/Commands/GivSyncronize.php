@@ -108,11 +108,11 @@ class GivSyncronize extends Command
                 break;
             case 'stock':
                 // sync without images
-                $syncer->syncProducts(true /* sync without images */);
+                $syncer->syncProducts(true /* sync without images */, $this->option('from-start'));
                 $this->info('Product Stock sync success');
                 break;
             case 'products':
-            $syncer->syncProducts(false /* sync with images */);
+                $syncer->syncProducts(false /* sync with images */, $this->option('from-start'));
                 $this->info('Products sync success');
                 break;
             case 'categories':

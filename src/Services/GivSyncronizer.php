@@ -275,6 +275,51 @@ class GivSyncronizer
         ]));
     }
 
+
+    /**
+     * Undocumented function
+     *
+     * @param string $code
+     * @param string $cat
+     * @return void
+     */
+    public function syncProductByCategory($catId, $dontSyncImages = false)
+    {
+        /** @var ProductCategory */
+        $cat = ProductCategory::find($catId);
+
+        /** @var IProductRepository */
+        $repo = app(IProductRepository::class);
+
+        if (Str::startsWith($cat->name, 'giv-')) {
+            $code = Str::substr($cat->name, Str::length('giv-'));
+            $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
+            $this->client->traverseProducts(
+                function (PaginatedResponse $response) use ($code, $catIds, $dontSyncImages) {
+                    foreach ($response->Value as $prod) {
+                        if ($prod->ItemCategory->CategoryCode === intval($code)) {
+                            $this->syncProduct(
+                                $prod,
+                                $prod->ItemCode,
+                                $catIds,
+                                PersianText::standard($prod->ItemName),
+                                $this->isProductActive($prod),
+                                $prod->ItemParentID,
+                                null,
+                                $dontSyncImages
+                            );
+                            return 'stop';
+                        }
+                    }
+                },
+                $code,
+                null,
+                1000,
+                null
+            );
+        }
+    }
+
     /**
      * Undocumented function
      *

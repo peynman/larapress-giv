@@ -106,6 +106,13 @@ class GivSyncronize extends Command
                     }
                 }
                 break;
+            case 'items':
+                $id = $this->option('id');
+                if (!is_null($id)) {
+                    $syncer->syncProductByCategory($id, true /* sync without images */);
+                    $this->info('Product Stock synced in category '.$id);
+                }
+                break;
             case 'stock':
                 // sync without images
                 $syncer->syncProducts(true /* sync without images */, $this->option('from-start'));

@@ -291,7 +291,7 @@ class GivSyncronizer
         /** @var IProductRepository */
         $repo = app(IProductRepository::class);
 
-        if (Str::startsWith($cat->name, 'giv-')) {
+        if (!is_null($cat) && Str::startsWith($cat->name, 'giv-')) {
             $code = Str::substr($cat->name, Str::length('giv-'));
             $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
             $this->client->traverseProducts(

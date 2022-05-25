@@ -599,6 +599,9 @@ class GivSyncronizer
                 if (!in_array($brandCat->id, $existingCats)) {
                     $existingCats[] = $brandCat->id;
                 }
+                if (!in_array(config('larapress.giv.giv_brands_parent_category'), $existingCats)) {
+                    $existingCats[] = config('larapress.giv.giv_brands_parent_category');
+                }
             }
         }
 

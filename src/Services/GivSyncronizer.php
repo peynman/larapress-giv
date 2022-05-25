@@ -583,7 +583,7 @@ class GivSyncronizer
             !is_null($prod->ItemSpec1) && strlen($prod->ItemSpec1) > 1 &&
             !is_null(config('larapress.giv.giv_brands_parent_category'))
         ) {
-            $brandCatName = 'brand-giv-' . Str::replace(' ', '-', Str::lower($prod->ItemSpec1));
+            $brandCatName = 'givspecbrand-' . Str::replace(' ', '-', Str::lower($prod->ItemSpec1));
             $brandCat = ProductCategory::withTrashed()->where('name', $brandCatName)->first();
             if (is_null($brandCat)) {
                 $brandCat = ProductCategory::create([

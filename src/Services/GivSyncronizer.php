@@ -455,17 +455,27 @@ class GivSyncronizer
 
         /** @var ProductCategory[] */
         $cats = ProductCategory::query()
-            ->with(['parent', 'parent.parent'])
+            ->with(['parent', 'parent.parent', 'parent.parent.parent'])
             ->select('id', 'parent_id', 'name')
             ->get();
 
         /** @var IProductRepository */
         $repo = app(IProductRepository::class);
 
+        $rootCategoriesByName = ProductCategory::query()->whereNull('parent_id')->select('id', 'parent_id', 'name')->get()->keyBy('name');
+
         foreach ($cats as $cat) {
             if (Str::startsWith($cat->name, 'giv-')) {
                 $code = Str::substr($cat->name, Str::length('giv-'));
-                $catIds = array_merge([$cat->id], $repo->getProductCategoryAncestorIds($cat));
+                $rootCategoryCode = Str::substr($code, 0, 2);
+                $parentCatIds = [$cat->id];
+                if (intval($rootCategoryCode) !== intval($code)) {
+                    $rootCat = $rootCategoriesByName['giv-'.$rootCategoryCode] ?? null;
+                    if (!is_null($rootCat)) {
+                        $parentCatIds[] = $rootCategoriesByName['giv-'.$rootCategoryCode]->id;
+                    }
+                }
+                $catIds = array_merge($parentCatIds, $repo->getProductCategoryAncestorIds($cat));
                 $this->client->traverseProducts(
                     function (PaginatedResponse $response) use ($code, $catIds, $timestamps, $dontSyncImages) {
                         foreach ($response->Value as $prod) {
@@ -541,6 +551,7 @@ class GivSyncronizer
         $existingTypesData = [];
         $existingCats = [];
         $existingCellarData = [];
+        $existingImageData = [];
         if (!is_null($existingProd)) {
             $existingTypes = $existingProd->types->pluck('id')->toArray();
             $existingTypesData = $existingProd->data['types'];
@@ -556,6 +567,12 @@ class GivSyncronizer
                         unset($existingCellarData['inventory']);
                     }
                 }
+                if (isset($existingTypesData['images'])) {
+                    $existingImageData = $existingTypesData['images'];
+                    if (isset($existingImageData['slides'])) {
+                        unset($existingImageData['slides']);
+                    }
+                }
                 unset($existingTypesData['cellar']);
                 unset($existingTypesData['images']);
             }
@@ -563,21 +580,25 @@ class GivSyncronizer
 
         // has brand Spec
         if (
-            !is_null($prod->ItemSpec1) && strlen($prod->ItemSpec1) > 0 &&
-            !is_null(config('larapress.giv.giv_brands_parent_categor'))
+            !is_null($prod->ItemSpec1) && strlen($prod->ItemSpec1) > 1 &&
+            !is_null(config('larapress.giv.giv_brands_parent_category'))
         ) {
-            $brandCatName = 'brand-' . Str::lower($prod->ItemSpec1);
-            $cat = ProductCategory::withTrashed()->where('name', $brandCatName)->first();
-            if (is_null($cat)) {
-                $cat = ProductCategory::create([
+            $brandCatName = 'brand-giv-' . Str::replace(' ', '-', Str::lower($prod->ItemSpec1));
+            $brandCat = ProductCategory::withTrashed()->where('name', $brandCatName)->first();
+            if (is_null($brandCat)) {
+                $brandCat = ProductCategory::create([
                     'author_id' => config('larapress.giv.author_id'),
                     'name' => $brandCatName,
                     'parent_id' => config('larapress.giv.giv_brands_parent_category'),
                     'data' => [
                         'title' => $prod->ItemSpec1,
                     ],
-
                 ]);
+            }
+            if (!is_null($brandCat)) {
+                if (!in_array($brandCat->id, $existingCats)) {
+                    $existingCats[] = $brandCat->id;
+                }
             }
         }
 
@@ -596,9 +617,9 @@ class GivSyncronizer
                     'cellar' => array_merge($existingCellarData, [
                         'inventory' => $inventory,
                     ]),
-                    'images' => [
+                    'images' => array_merge($existingImageData, [
                         'slides' => $images,
-                    ],
+                    ]),
                 ]),
             ]
         ];

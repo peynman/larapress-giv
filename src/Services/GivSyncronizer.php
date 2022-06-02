@@ -118,7 +118,7 @@ class GivSyncronizer
                 'parent_id' => $parentId,
                 'data' => array_merge($data, [
                     'title' => PersianText::standard($givCat->CategoryName),
-                    'order' => $givCat->OrderIndex,
+                    'displayPriority' => $givCat->OrderIndex,
                     'showOnProductCard' => $givCat->VirtualSaleActive,
                     'isFilterable' => $givCat->VirtualSaleActive,
                     'giv' => [

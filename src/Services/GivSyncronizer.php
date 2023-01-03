@@ -552,7 +552,9 @@ class GivSyncronizer
         $existingCats = [];
         $existingCellarData = [];
         $existingImageData = [];
+        $existingPriceOff = null;
         if (!is_null($existingProd)) {
+            $existingPriceOff = $existingProd->data['fixedPrice']['offAmount'] ?? null;
             $existingTypes = $existingProd->types->pluck('id')->toArray();
             $existingTypesData = $existingProd->data['types'];
             $existingCats = $existingProd->categories()
@@ -613,6 +615,7 @@ class GivSyncronizer
                 'fixedPrice' => [
                     'amount' => (floatval($stock?->SellPrice) ?? 0) / 10,
                     'currency' => config('larapress.ecommerce.banking.currency.id'),
+                    'offAmount' => $existingPriceOff,
                 ],
                 'quantized' => true,
                 'maxQuantity' => -1,

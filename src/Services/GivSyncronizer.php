@@ -25,6 +25,7 @@ use Larapress\Giv\Services\GivApi\Product as GivApiProduct;
 use Larapress\Giv\Services\GivApi\ProductStock;
 use Larapress\Notifications\Models\SMSMessage;
 use Larapress\Notifications\Services\SMSService\Jobs\SendSMS;
+use Spatie\Url\Url;
 
 class GivSyncronizer
 {
@@ -380,7 +381,9 @@ class GivSyncronizer
         $inner = null;
         foreach ($cats as $category) {
             if (Str::startsWith($category->name, 'giv-')) {
-                if (is_null($inner) || $inner->id < $category->id) {
+                $innerGivId = intval(Str::substr($inner?->name, 4));
+                $currGivId = intval(Str::substr($category->name, 4));
+                if (is_null($inner) || $innerGivId < $currGivId) {
                     $inner = $category;
                 }
             }
@@ -841,7 +844,8 @@ class GivSyncronizer
      */
     protected function getImageDefFromProductImage($itemCode, $prodImage)
     {
-        $localPath = $this->client->downloadImageFile($prodImage->ImagePath);
+        $url = Url::fromString($prodImage->ImagePath);
+        $localPath = $this->client->downloadImageFile($url->withHost(config('larapress.giv.host')));
         $fileUpload = $this->fileService->processLocalFile(
             $this->authorUser,
             $localPath,

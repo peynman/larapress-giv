@@ -76,6 +76,13 @@ class GivSyncronize extends Command
                         foreach ($ids as $itemId) {
                             $syncer->syncProductById($itemId, false);
                         }
+                    } else if (Str::contains($id, '-')) {
+                        $ids = explode('-', $id);
+                        $first = $ids[0];
+                        $last = $ids[1];
+                        for ($i = $first; $i <= $last; $i++) {
+                            $syncer->syncProductById($i, false);
+                        }
                     } else {
                         $syncer->syncProductById($id, false);
                     }

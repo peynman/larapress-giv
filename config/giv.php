@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'host' => env('GIV_HOST', '127.0.0.1'),
     'base_url' => env('GIV_BASE_URL', 'http://127.0.0.1:8200'),
     'token' => env('GIV_WEB_TOKEN', null),
     'syncronize_customers' => true,
@@ -11,5 +12,5 @@ return [
     'product_default_image_width' => 256,
     'product_default_image_height' => 256,
     'sms_gate_cart_sync' => 2,
-    'giv_brands_parent_category' => null,
+    'giv_brands_parent_category' => null
 ];

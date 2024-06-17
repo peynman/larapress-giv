@@ -569,7 +569,7 @@ class Client
         curl_close($ch);
 
         try {
-            var_dump($params);
+            var_dump($url, $params);
             var_dump($result);
             var_dump('****************************************************************');
 

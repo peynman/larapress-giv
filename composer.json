@@ -31,7 +31,8 @@
     "php": "^7.0|^8.0",
     "laravel/framework": "^8.0",
     "nexmo/client": "^2.0",
-    "peynman/larapress-ecommerce": "*"
+    "peynman/larapress-ecommerce": "*",
+    "spatie/url": "^2.4"
   },
   "require-dev": {
     "facade/ignition": "^2.3.6",
